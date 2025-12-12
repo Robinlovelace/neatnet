@@ -4,7 +4,13 @@
 \alias{neat_skeletonize}
 \title{Skeletonize Polygon}
 \usage{
-neat_skeletonize(geometry, dist, max_segment_length, final_min_length)
+neat_skeletonize(
+  geometry,
+  dist,
+  max_segment_length,
+  final_min_length,
+  simplify = FALSE
+)
 }
 \arguments{
 \item{geometry}{A geos_geometry vector (polygons).}

@@ -4,7 +4,13 @@
 \alias{neatnet}
 \title{Neat Network Simplification}
 \usage{
-neatnet(x, dist = 10, max_segment_factor = 2, final_min_factor = 3)
+neatnet(
+  x,
+  dist = 10,
+  max_segment_factor = 2,
+  final_min_factor = 3,
+  simplify = FALSE
+)
 }
 \arguments{
 \item{x}{An sf object representing the network.}
@@ -14,6 +20,9 @@ neatnet(x, dist = 10, max_segment_factor = 2, final_min_factor = 3)
 \item{max_segment_factor}{Multiplier for dist to determine max_segment_length (default 2).}
 
 \item{final_min_factor}{Multiplier for dist to determine final_min_length (default 3).}
+
+\item{simplify}{Logical; if TRUE, applies line simplification and a final smoothing/healing
+pass to reduce waviness. Default FALSE.}
 }
 \value{
 An sf object of the simplified network.

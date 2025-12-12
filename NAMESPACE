@@ -2,8 +2,9 @@
 
 export(neat_geometry_buffer)
 export(neat_skeletonize)
-export(net_summary)
 export(neatnet)
+export(neatnet_classify_groups)
+export(net_summary)
 import(geos)
 import(sf)
 import(wk)
