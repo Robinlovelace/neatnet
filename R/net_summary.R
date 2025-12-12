@@ -8,7 +8,7 @@
 #' @param node Logical; if `TRUE`, node the linework before computing connected
 #'   components.
 #'
-#' @return A named list with elements `n_features`, `total_length`, and `n_components`.
+#' @return A named list with elements `n_features`, `n_vertices`, `total_length`, and `n_components`.
 #' @export
 net_summary <- function(x, grid_size = 0.1, node = TRUE) {
   if (inherits(x, "sf")) {
@@ -23,7 +23,7 @@ net_summary <- function(x, grid_size = 0.1, node = TRUE) {
   g <- g[!geos::geos_is_empty(g)]
 
   if (length(g) == 0) {
-    return(list(n_features = 0L, total_length = 0, n_components = 0L))
+    return(list(n_features = 0L, n_vertices = 0L, total_length = 0, n_components = 0L))
   }
 
   # Clean up to lines
@@ -31,7 +31,7 @@ net_summary <- function(x, grid_size = 0.1, node = TRUE) {
   g <- g[!geos::geos_is_empty(g)]
 
   if (length(g) == 0) {
-    return(list(n_features = 0L, total_length = 0, n_components = 0L))
+    return(list(n_features = 0L, n_vertices = 0L, total_length = 0, n_components = 0L))
   }
 
   total_length <- sum(as.numeric(geos::geos_length(g)), na.rm = TRUE)
@@ -49,8 +49,10 @@ net_summary <- function(x, grid_size = 0.1, node = TRUE) {
 
   g <- g[!geos::geos_is_empty(g)]
   if (length(g) == 0) {
-    return(list(n_features = 0L, total_length = total_length, n_components = 0L))
+    return(list(n_features = 0L, n_vertices = 0L, total_length = total_length, n_components = 0L))
   }
+
+  n_vertices <- sum(as.integer(geos::geos_num_coordinates(g)), na.rm = TRUE)
 
   # Compute connected components using union-find on endpoint IDs.
   # Using HEX ensures stable point equality after precision snapping.
@@ -87,6 +89,7 @@ net_summary <- function(x, grid_size = 0.1, node = TRUE) {
 
   list(
     n_features = as.integer(length(g)),
+    n_vertices = as.integer(n_vertices),
     total_length = total_length,
     n_components = as.integer(n_components)
   )

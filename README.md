@@ -134,6 +134,9 @@ print(input_summary)
 #> $n_features
 #> [1] 1192
 #> 
+#> $n_vertices
+#> [1] 4670
+#> 
 #> $total_length
 #> [1] 49375.87
 #> 
@@ -142,6 +145,9 @@ print(input_summary)
 print(output_summary)
 #> $n_features
 #> [1] 545
+#> 
+#> $n_vertices
+#> [1] 9818
 #> 
 #> $total_length
 #> [1] 35776.52
@@ -169,6 +175,9 @@ print(variant_summaries)
 #> $default$n_features
 #> [1] 545
 #> 
+#> $default$n_vertices
+#> [1] 9818
+#> 
 #> $default$total_length
 #> [1] 35776.52
 #> 
@@ -179,6 +188,9 @@ print(variant_summaries)
 #> $dist6
 #> $dist6$n_features
 #> [1] 621
+#> 
+#> $dist6$n_vertices
+#> [1] 13633
 #> 
 #> $dist6$total_length
 #> [1] 37966.55
@@ -191,6 +203,9 @@ print(variant_summaries)
 #> $dist10$n_features
 #> [1] 528
 #> 
+#> $dist10$n_vertices
+#> [1] 7779
+#> 
 #> $dist10$total_length
 #> [1] 34746.3
 #> 
@@ -201,6 +216,9 @@ print(variant_summaries)
 #> $less_pruning
 #> $less_pruning$n_features
 #> [1] 2319
+#> 
+#> $less_pruning$n_vertices
+#> [1] 15752
 #> 
 #> $less_pruning$total_length
 #> [1] 49327.68
@@ -213,6 +231,9 @@ print(variant_summaries)
 #> $more_pruning$n_features
 #> [1] 527
 #> 
+#> $more_pruning$n_vertices
+#> [1] 9726
+#> 
 #> $more_pruning$total_length
 #> [1] 35513.1
 #> 
@@ -224,6 +245,9 @@ print(variant_summaries)
 #> $finer_boundary$n_features
 #> [1] 2583
 #> 
+#> $finer_boundary$n_vertices
+#> [1] 16759
+#> 
 #> $finer_boundary$total_length
 #> [1] 51718.05
 #> 
@@ -234,6 +258,9 @@ print(variant_summaries)
 #> $coarser_boundary
 #> $coarser_boundary$n_features
 #> [1] 542
+#> 
+#> $coarser_boundary$n_vertices
+#> [1] 9914
 #> 
 #> $coarser_boundary$total_length
 #> [1] 35805.49
