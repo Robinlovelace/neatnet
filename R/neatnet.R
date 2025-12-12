@@ -136,7 +136,7 @@ prune_short_branches_iterative <- function(lines, min_length) {
 #' @param final_min_length Minimum length for final segment filtering.
 #' @return A geos_geometry vector (lines).
 #' @export
-neat_skeletonize <- function(geometry, dist, max_segment_length, final_min_length) {
+neat_skeletonize <- function(geometry, dist, max_segment_length, final_min_length, simplify = FALSE) {
   # 1. Get Boundary
   boundary <- geos_boundary(geometry)
   
@@ -198,10 +198,14 @@ neat_skeletonize <- function(geometry, dist, max_segment_length, final_min_lengt
   spine_noded <- geos_unary_union_prec(collection, grid_size = dist / 5)
   spine_merged <- geos_line_merge(spine_noded)
   
-  # Simplify to smooth artifacts.
-  # NOTE: Too much simplification can break junction connectivity.
-  simplified <- geos_simplify(spine_merged, tolerance = max_segment_length / 10)
-  lines <- geos_unnest(simplified, keep_multi = FALSE)
+  if (isTRUE(simplify)) {
+    # Simplify to smooth artifacts.
+    # NOTE: Too much simplification can break junction connectivity.
+    simplified <- geos_simplify(spine_merged, tolerance = max_segment_length / 10)
+    lines <- geos_unnest(simplified, keep_multi = FALSE)
+  } else {
+    lines <- geos_unnest(spine_merged, keep_multi = FALSE)
+  }
 
   if (length(lines) == 0) {
     return(geos_empty())
@@ -236,40 +240,42 @@ neat_skeletonize <- function(geometry, dist, max_segment_length, final_min_lengt
   # Final merge pass after branch pruning.
   result_lines <- geos_unnest(geos_merge_lines(geos_make_collection(result_lines)), keep_multi = FALSE)
 
-  # 9. Final smoothing (reduce waviness)
-  # Simplify geometries, then heal to ensure we don't introduce gaps.
-  # The tolerance is tied to `dist` so it scales with the network buffer width.
-  smooth_tol <- dist / 2
-  result_lines_smooth <- geos_simplify(result_lines, tolerance = smooth_tol)
-  result_lines_smooth <- geos_unnest(result_lines_smooth, keep_multi = FALSE)
-
-  if (length(result_lines_smooth) > 0) {
-    # Drop degenerate geometries that can trigger GEOS densify errors
-    ok <- (geos_num_coordinates(result_lines_smooth) > 1) & (geos_length(result_lines_smooth) > 0)
-    ok[is.na(ok)] <- FALSE
-    result_lines_smooth <- result_lines_smooth[ok]
-
-    if (length(result_lines_smooth) == 0) {
-      return(result_lines)
-    }
-
-    result_lines_smooth <- geos_densify(result_lines_smooth, tolerance = dist / 2)
-    result_lines_smooth <- geos_snap(result_lines_smooth, result_lines_smooth, tolerance = dist)
-    result_lines_smooth <- geos_unary_union_prec(
-      geos_make_collection(result_lines_smooth),
-      grid_size = dist / 5
-    )
-    result_lines_smooth <- geos_merge_lines(result_lines_smooth)
+  if (isTRUE(simplify)) {
+    # 9. Final smoothing (reduce waviness)
+    # Simplify geometries, then heal to ensure we don't introduce gaps.
+    # The tolerance is tied to `dist` so it scales with the network buffer width.
+    smooth_tol <- dist / 2
+    result_lines_smooth <- geos_simplify(result_lines, tolerance = smooth_tol)
     result_lines_smooth <- geos_unnest(result_lines_smooth, keep_multi = FALSE)
 
-    # One more pass to remove short branches created by smoothing.
-    result_lines_smooth <- prune_short_branches_iterative(result_lines_smooth, min_length = final_min_length)
     if (length(result_lines_smooth) > 0) {
-      result_lines_smooth <- geos_unnest(
-        geos_merge_lines(geos_make_collection(result_lines_smooth)),
-        keep_multi = FALSE
+      # Drop degenerate geometries that can trigger GEOS densify errors
+      ok <- (geos_num_coordinates(result_lines_smooth) > 1) & (geos_length(result_lines_smooth) > 0)
+      ok[is.na(ok)] <- FALSE
+      result_lines_smooth <- result_lines_smooth[ok]
+
+      if (length(result_lines_smooth) == 0) {
+        return(result_lines)
+      }
+
+      result_lines_smooth <- geos_densify(result_lines_smooth, tolerance = dist / 2)
+      result_lines_smooth <- geos_snap(result_lines_smooth, result_lines_smooth, tolerance = dist)
+      result_lines_smooth <- geos_unary_union_prec(
+        geos_make_collection(result_lines_smooth),
+        grid_size = dist / 5
       )
-      result_lines <- result_lines_smooth
+      result_lines_smooth <- geos_merge_lines(result_lines_smooth)
+      result_lines_smooth <- geos_unnest(result_lines_smooth, keep_multi = FALSE)
+
+      # One more pass to remove short branches created by smoothing.
+      result_lines_smooth <- prune_short_branches_iterative(result_lines_smooth, min_length = final_min_length)
+      if (length(result_lines_smooth) > 0) {
+        result_lines_smooth <- geos_unnest(
+          geos_merge_lines(geos_make_collection(result_lines_smooth)),
+          keep_multi = FALSE
+        )
+        result_lines <- result_lines_smooth
+      }
     }
   }
   
@@ -284,9 +290,11 @@ neat_skeletonize <- function(geometry, dist, max_segment_length, final_min_lengt
 #' @param dist Buffer distance (half width of road).
 #' @param max_segment_factor Multiplier for dist to determine max_segment_length (default 2).
 #' @param final_min_factor Multiplier for dist to determine final_min_length (default 3).
+#' @param simplify Logical; if TRUE, applies line simplification and a final smoothing/healing
+#'   pass to reduce waviness. Default FALSE.
 #' @return An sf object of the simplified network.
 #' @export
-neatnet <- function(x, dist = 10, max_segment_factor = 2, final_min_factor = 3) {
+neatnet <- function(x, dist = 10, max_segment_factor = 2, final_min_factor = 3, simplify = FALSE) {
   # Calculate internal parameters
   max_segment_length_internal <- dist * max_segment_factor
   final_min_length_internal <- dist * final_min_factor
@@ -298,7 +306,13 @@ neatnet <- function(x, dist = 10, max_segment_factor = 2, final_min_factor = 3) 
   g_buff <- neat_geometry_buffer(g, dist)
   
   # Step 2: Skeletonize
-  g_skel <- neat_skeletonize(g_buff, dist, max_segment_length_internal, final_min_length_internal) 
+  g_skel <- neat_skeletonize(
+    g_buff,
+    dist,
+    max_segment_length_internal,
+    final_min_length_internal,
+    simplify = simplify
+  )
   
   # Step 3: Convert back to sf
   res <- sf::st_as_sf(g_skel)

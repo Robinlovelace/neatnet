@@ -65,10 +65,10 @@ print(simplified)
 #> Simple feature collection with 1 feature and 0 fields
 #> Geometry type: LINESTRING
 #> Dimension:     XY
-#> Bounding box:  xmin: 4 ymin: 3 xmax: 96 ymax: 3
+#> Bounding box:  xmin: 4 ymin: 3 xmax: 97 ymax: 3
 #> Projected CRS: OSGB36 / British National Grid
 #>                         geometry
-#> 1 LINESTRING (96 3, 94 3, 91 ...
+#> 1 LINESTRING (97 3, 96 3, 95 ...
 
 # Plotting (basic)
 plot(st_geometry(lines_sf), col = "blue", lwd = 2, main = "Original (Blue) vs Simplified (Red)")
@@ -112,7 +112,8 @@ print(paste("Original features:", nrow(princes_st)))
 
 # Run neatnet
 # dist = 8 matches the Python buffer=8.0
-simplified_princes <- neatnet(princes_st, dist = 8)
+# `simplify = TRUE` enables an extra smoothing/healing pass.
+simplified_princes <- neatnet(princes_st, dist = 8, simplify = TRUE)
 print(paste("Simplified features:", nrow(simplified_princes)))
 #> [1] "Simplified features: 545"
 
@@ -153,13 +154,13 @@ print(output_summary)
 # How neatnet arguments affect connectivity
 
 variants <- list(
-  default = neatnet(princes_st, dist = 8),
-  dist6 = neatnet(princes_st, dist = 6),
-  dist10 = neatnet(princes_st, dist = 10),
-  less_pruning = neatnet(princes_st, dist = 8, final_min_factor = 1),
-  more_pruning = neatnet(princes_st, dist = 8, final_min_factor = 4),
-  finer_boundary = neatnet(princes_st, dist = 8, max_segment_factor = 1.5, final_min_factor = 1),
-  coarser_boundary = neatnet(princes_st, dist = 8, max_segment_factor = 3, final_min_factor = 3)
+  default = neatnet(princes_st, dist = 8, simplify = TRUE),
+  dist6 = neatnet(princes_st, dist = 6, simplify = TRUE),
+  dist10 = neatnet(princes_st, dist = 10, simplify = TRUE),
+  less_pruning = neatnet(princes_st, dist = 8, final_min_factor = 1, simplify = TRUE),
+  more_pruning = neatnet(princes_st, dist = 8, final_min_factor = 4, simplify = TRUE),
+  finer_boundary = neatnet(princes_st, dist = 8, max_segment_factor = 1.5, final_min_factor = 1, simplify = TRUE),
+  coarser_boundary = neatnet(princes_st, dist = 8, max_segment_factor = 3, final_min_factor = 3, simplify = TRUE)
 )
 
 variant_summaries <- lapply(variants, net_summary, grid_size = 0.1)
