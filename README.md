@@ -65,10 +65,10 @@ print(simplified)
 #> Simple feature collection with 1 feature and 0 fields
 #> Geometry type: LINESTRING
 #> Dimension:     XY
-#> Bounding box:  xmin: 4 ymin: 3 xmax: 97 ymax: 3
+#> Bounding box:  xmin: 4 ymin: 3 xmax: 96 ymax: 3
 #> Projected CRS: OSGB36 / British National Grid
 #>                         geometry
-#> 1 LINESTRING (97 3, 96 3, 95 ...
+#> 1 LINESTRING (96 3, 95 3, 90 ...
 
 # Plotting (basic)
 plot(st_geometry(lines_sf), col = "blue", lwd = 2, main = "Original (Blue) vs Simplified (Red)")
@@ -112,10 +112,10 @@ print(paste("Original features:", nrow(princes_st)))
 
 # Run neatnet
 # dist = 8 matches the Python buffer=8.0
-# `simplify = TRUE` enables an extra smoothing/healing pass.
-simplified_princes <- neatnet(princes_st, dist = 8, simplify = TRUE)
+# Keep `simplify = FALSE` for now.
+simplified_princes <- neatnet(princes_st, dist = 8)
 print(paste("Simplified features:", nrow(simplified_princes)))
-#> [1] "Simplified features: 545"
+#> [1] "Simplified features: 797"
 
 # Plot
 plot(st_geometry(princes_st), col = "grey", lwd = 3, main = "Princes Street: Original (Grey) vs Simplified (Red)")
@@ -125,6 +125,41 @@ plot(st_geometry(simplified_princes), col = "red", lwd = 2, add = TRUE)
 <img src="man/figures/README-princes-street-1.png" width="100%" />
 
 ``` r
+# Classify and visualise groups
+groups <- neatnet_classify_groups(princes_st, dist = 8)
+print(table(groups$group_class))
+#> 
+#>         parallel parallel+complex 
+#>                3             1141
+
+pal <- c(
+  keep = "grey70",
+  parallel = "dodgerblue3",
+  complex = "orange3",
+  `parallel+complex` = "purple4"
+)
+cols <- pal[as.character(groups$group_class)]
+cols[is.na(cols)] <- "grey70"
+
+plot(st_geometry(groups), col = cols, lwd = 2, main = "Princes Street: classified groups")
+legend(
+  "topright",
+  legend = names(pal),
+  col = unname(pal),
+  lwd = 2,
+  cex = 0.8,
+  bty = "n"
+)
+```
+
+<img src="man/figures/README-princes-street-groups-1.png" width="100%" />
+
+``` r
+mapview::mapview(princes_st, lwd = 1) +
+  mapview::mapview(simplified_princes, lwd = 2)
+```
+
+``` r
 # Network summaries (features, total length, connected components)
 
 input_summary <- net_summary(princes_st, grid_size = 0.1)
@@ -132,139 +167,193 @@ output_summary <- net_summary(simplified_princes, grid_size = 0.1)
 
 print(input_summary)
 #> $n_features
-#> [1] 1192
+#> [1] 1144
 #> 
 #> $n_vertices
-#> [1] 4670
+#> [1] 4603
 #> 
 #> $total_length
 #> [1] 49375.87
 #> 
 #> $n_components
 #> [1] 2
+#> 
+#> $n_features_topo
+#> [1] 1192
+#> 
+#> $n_vertices_topo
+#> [1] 4670
 print(output_summary)
 #> $n_features
-#> [1] 545
+#> [1] 797
 #> 
 #> $n_vertices
-#> [1] 9818
+#> [1] 9269
 #> 
 #> $total_length
-#> [1] 35776.52
+#> [1] 37981.94
 #> 
 #> $n_components
 #> [1] 2
+#> 
+#> $n_features_topo
+#> [1] 797
+#> 
+#> $n_vertices_topo
+#> [1] 9269
 ```
 
 ``` r
 # How neatnet arguments affect connectivity
 
 variants <- list(
-  default = neatnet(princes_st, dist = 8, simplify = TRUE),
-  dist6 = neatnet(princes_st, dist = 6, simplify = TRUE),
-  dist10 = neatnet(princes_st, dist = 10, simplify = TRUE),
-  less_pruning = neatnet(princes_st, dist = 8, final_min_factor = 1, simplify = TRUE),
-  more_pruning = neatnet(princes_st, dist = 8, final_min_factor = 4, simplify = TRUE),
-  finer_boundary = neatnet(princes_st, dist = 8, max_segment_factor = 1.5, final_min_factor = 1, simplify = TRUE),
-  coarser_boundary = neatnet(princes_st, dist = 8, max_segment_factor = 3, final_min_factor = 3, simplify = TRUE)
+  default = neatnet(princes_st, dist = 8),
+  dist6 = neatnet(princes_st, dist = 6),
+  dist10 = neatnet(princes_st, dist = 10),
+  less_pruning = neatnet(princes_st, dist = 8, final_min_factor = 1),
+  more_pruning = neatnet(princes_st, dist = 8, final_min_factor = 4),
+  finer_boundary = neatnet(princes_st, dist = 8, max_segment_factor = 1.5, final_min_factor = 1),
+  coarser_boundary = neatnet(princes_st, dist = 8, max_segment_factor = 3, final_min_factor = 3)
 )
 
 variant_summaries <- lapply(variants, net_summary, grid_size = 0.1)
 print(variant_summaries)
 #> $default
 #> $default$n_features
-#> [1] 545
+#> [1] 797
 #> 
 #> $default$n_vertices
-#> [1] 9818
+#> [1] 9269
 #> 
 #> $default$total_length
-#> [1] 35776.52
+#> [1] 37981.94
 #> 
 #> $default$n_components
 #> [1] 2
 #> 
+#> $default$n_features_topo
+#> [1] 797
+#> 
+#> $default$n_vertices_topo
+#> [1] 9269
+#> 
 #> 
 #> $dist6
 #> $dist6$n_features
-#> [1] 621
+#> [1] 810
 #> 
 #> $dist6$n_vertices
-#> [1] 13633
+#> [1] 11945
 #> 
 #> $dist6$total_length
-#> [1] 37966.55
+#> [1] 39563.56
 #> 
 #> $dist6$n_components
 #> [1] 2
 #> 
+#> $dist6$n_features_topo
+#> [1] 810
+#> 
+#> $dist6$n_vertices_topo
+#> [1] 11945
+#> 
 #> 
 #> $dist10
 #> $dist10$n_features
-#> [1] 528
+#> [1] 689
 #> 
 #> $dist10$n_vertices
-#> [1] 7779
+#> [1] 7698
 #> 
 #> $dist10$total_length
-#> [1] 34746.3
+#> [1] 36813.98
 #> 
 #> $dist10$n_components
 #> [1] 1
 #> 
+#> $dist10$n_features_topo
+#> [1] 689
+#> 
+#> $dist10$n_vertices_topo
+#> [1] 7698
+#> 
 #> 
 #> $less_pruning
 #> $less_pruning$n_features
-#> [1] 2319
+#> [1] 2467
 #> 
 #> $less_pruning$n_vertices
-#> [1] 15752
+#> [1] 12998
 #> 
 #> $less_pruning$total_length
-#> [1] 49327.68
+#> [1] 50834.62
 #> 
 #> $less_pruning$n_components
 #> [1] 2
 #> 
+#> $less_pruning$n_features_topo
+#> [1] 2467
+#> 
+#> $less_pruning$n_vertices_topo
+#> [1] 12998
+#> 
 #> 
 #> $more_pruning
 #> $more_pruning$n_features
-#> [1] 527
+#> [1] 777
 #> 
 #> $more_pruning$n_vertices
-#> [1] 9726
+#> [1] 9182
 #> 
 #> $more_pruning$total_length
-#> [1] 35513.1
+#> [1] 37685.74
 #> 
 #> $more_pruning$n_components
 #> [1] 2
 #> 
+#> $more_pruning$n_features_topo
+#> [1] 777
+#> 
+#> $more_pruning$n_vertices_topo
+#> [1] 9182
+#> 
 #> 
 #> $finer_boundary
 #> $finer_boundary$n_features
-#> [1] 2583
+#> [1] 2739
 #> 
 #> $finer_boundary$n_vertices
-#> [1] 16759
+#> [1] 14340
 #> 
 #> $finer_boundary$total_length
-#> [1] 51718.05
+#> [1] 53136.78
 #> 
 #> $finer_boundary$n_components
 #> [1] 2
 #> 
+#> $finer_boundary$n_features_topo
+#> [1] 2739
+#> 
+#> $finer_boundary$n_vertices_topo
+#> [1] 14340
+#> 
 #> 
 #> $coarser_boundary
 #> $coarser_boundary$n_features
-#> [1] 542
+#> [1] 786
 #> 
 #> $coarser_boundary$n_vertices
-#> [1] 9914
+#> [1] 9100
 #> 
 #> $coarser_boundary$total_length
-#> [1] 35805.49
+#> [1] 38046.05
 #> 
 #> $coarser_boundary$n_components
 #> [1] 5
+#> 
+#> $coarser_boundary$n_features_topo
+#> [1] 786
+#> 
+#> $coarser_boundary$n_vertices_topo
+#> [1] 9100
 ```

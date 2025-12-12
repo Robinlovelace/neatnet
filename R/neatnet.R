@@ -189,7 +189,7 @@ neat_skeletonize <- function(geometry, dist, max_segment_length, final_min_lengt
   # Snap endpoints to ensure connectivity before merging.
   # Densify first so endpoints can snap to mid-segment vertices (not just existing
   # endpoints), which helps close small gaps at junctions.
-  spine_edges_dense <- geos_densify(spine_edges_pruned_initial, tolerance = dist / 2)
+  spine_edges_dense <- geos_densify(spine_edges_pruned_initial, tolerance = dist)
   snapped_edges <- geos_snap(spine_edges_dense, spine_edges_dense, tolerance = dist)
   
   # 7. Merge and Simplify
@@ -216,7 +216,8 @@ neat_skeletonize <- function(geometry, dist, max_segment_length, final_min_lengt
 
   # 8. Final Healing
   # Heal small gaps using densify + snap + union/merge, then prune short dangles.
-  lines_dense <- geos_densify(lines, tolerance = dist / 2)
+  heal_densify_tol <- max(max_segment_length, dist * 2)
+  lines_dense <- geos_densify(lines, tolerance = heal_densify_tol)
   snapped_final <- geos_snap(lines_dense, lines_dense, tolerance = dist)
   final_noded <- geos_unary_union_prec(geos_make_collection(snapped_final), grid_size = dist / 5)
   final_merged <- geos_merge_lines(final_noded)

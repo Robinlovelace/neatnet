@@ -17,6 +17,8 @@ components.}
 }
 \value{
 A named list with elements `n_features`, `n_vertices`, `total_length`, and `n_components`.
+  Also returns `n_features_topo` and `n_vertices_topo`, which reflect the
+  (optional) precision-snapped + noded linework used for topology.
 }
 \description{
 Compute basic network summary metrics for a line network.
