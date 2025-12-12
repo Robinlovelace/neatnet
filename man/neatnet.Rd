@@ -9,7 +9,9 @@ neatnet(
   dist = 10,
   max_segment_factor = 2,
   final_min_factor = 3,
-  simplify = FALSE
+  simplify = FALSE,
+  selective = TRUE,
+  classify_dist = 2 * dist
 )
 }
 \arguments{
@@ -23,6 +25,16 @@ neatnet(
 
 \item{simplify}{Logical; if TRUE, applies line simplification and a final smoothing/healing
 pass to reduce waviness. Default FALSE.}
+
+\item{selective}{Logical; if TRUE (default), only applies the buffer/skeletonization
+algorithm to features classified as `parallel` or `parallel+complex` by
+`neatnet_classify_groups()`.
+Other features are passed through untouched. This preserves straight single
+carriageway segments and can be faster.}
+
+\item{classify_dist}{Distance (map units) used by the classification step to detect
+near-parallel line pairs. Defaults to `2 * dist` (i.e., lines whose buffers
+would overlap at the given `dist`).}
 }
 \value{
 An sf object of the simplified network.

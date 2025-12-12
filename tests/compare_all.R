@@ -2,6 +2,7 @@
 library(sf)
 library(geos)
 library(wk)
+library(neatnet)
 
 # 1. Define Input
 l1 <- matrix(c(0, 0, 100, 0), ncol = 2, byrow = TRUE)
@@ -14,7 +15,6 @@ lines_sf <- st_sf(
 )
 
 # 2. Run R neatnet
-source("R/neatnet.R")
 out_r_path <- "tests/output_neatnet_r.geojson"
 tryCatch({
   simplified_r <- neatnet(lines_sf, dist = 5, max_segment_length = 5)

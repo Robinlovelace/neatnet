@@ -1,7 +1,7 @@
 
 library(sf)
 library(geos)
-source("R/neatnet.R")
+library(neatnet)
 
 f <- system.file("extdata", "rnet_princes_street.geojson", package = "neatnet")
 if (f == "") f <- "inst/extdata/rnet_princes_street.geojson"

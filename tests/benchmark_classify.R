@@ -2,7 +2,7 @@
 
 suppressPackageStartupMessages({
   library(sf)
-  devtools::load_all()
+  library(neatnet)
 })
 
 f <- system.file("extdata", "rnet_princes_street.geojson", package = "neatnet")

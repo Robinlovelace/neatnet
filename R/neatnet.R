@@ -13,10 +13,10 @@ NULL
 #' @export
 neat_geometry_buffer <- function(geometry, dist) {
   # Buffer each line
-  buffered <- geos_buffer(geometry, dist, params = geos_buffer_params(quad_segs = 16))
+  buffered <- geos::geos_buffer(geometry, dist, params = geos::geos_buffer_params(quad_segs = 16))
   
   # Union all buffers
-  geos_unary_union(geos_make_collection(buffered))
+  geos::geos_unary_union(geos::geos_make_collection(buffered))
 }
 
 #' Iteratively Prune Short Dangles
@@ -30,22 +30,22 @@ neat_geometry_buffer <- function(geometry, dist) {
 #' @return A geos_geometry vector of filtered lines.
 #' @noRd
 prune_short_dangles_iterative <- function(lines, min_length) {
-  if (length(lines) == 0) return(geos_empty())
+  if (length(lines) == 0) return(geos::geos_empty())
   
   repeat {
     initial_line_count <- length(lines)
     
     # 1. Calculate lengths
-    lens <- geos_length(lines)
+    lens <- geos::geos_length(lines)
     
     # 2. Build topology to find node degrees
     # We need all endpoints of ALL lines to determine connectivity
-    starts <- geos_point_start(lines)
-    ends <- geos_point_end(lines)
+    starts <- geos::geos_point_start(lines)
+    ends <- geos::geos_point_end(lines)
     
     # Convert to comparable representation (Hex is safer for binary equality)
-    starts_hex <- geos_write_hex(starts)
-    ends_hex <- geos_write_hex(ends)
+    starts_hex <- geos::geos_write_hex(starts)
+    ends_hex <- geos::geos_write_hex(ends)
     
     all_points_hex <- c(starts_hex, ends_hex)
     
@@ -93,18 +93,18 @@ prune_short_dangles_iterative <- function(lines, min_length) {
 #' @return A geos_geometry vector of filtered lines.
 #' @noRd
 prune_short_branches_iterative <- function(lines, min_length) {
-  if (length(lines) == 0) return(geos_empty())
+  if (length(lines) == 0) return(geos::geos_empty())
 
   repeat {
     initial_line_count <- length(lines)
 
-    lens <- geos_length(lines)
+    lens <- geos::geos_length(lines)
 
-    starts <- geos_point_start(lines)
-    ends <- geos_point_end(lines)
+    starts <- geos::geos_point_start(lines)
+    ends <- geos::geos_point_end(lines)
 
-    starts_hex <- geos_write_hex(starts)
-    ends_hex <- geos_write_hex(ends)
+    starts_hex <- geos::geos_write_hex(starts)
+    ends_hex <- geos::geos_write_hex(ends)
     all_points_hex <- c(starts_hex, ends_hex)
     point_counts <- table(all_points_hex)
 
@@ -134,29 +134,31 @@ prune_short_branches_iterative <- function(lines, min_length) {
 #' @param dist The buffer distance used for the input geometry (needed for final pruning).
 #' @param max_segment_length Distance for densifying the boundary to ensure good Voronoi generation.
 #' @param final_min_length Minimum length for final segment filtering.
+#' @param simplify Logical; if TRUE, performs line simplification and an optional
+#'   final smoothing/healing pass to reduce waviness. Default FALSE.
 #' @return A geos_geometry vector (lines).
 #' @export
 neat_skeletonize <- function(geometry, dist, max_segment_length, final_min_length, simplify = FALSE) {
   # 1. Get Boundary
-  boundary <- geos_boundary(geometry)
+  boundary <- geos::geos_boundary(geometry)
   
   # 2. Densify Boundary
   # geos_densify adds vertices so that no segment is longer than tolerance
-  boundary_densified <- geos_densify(boundary, tolerance = max_segment_length)
+  boundary_densified <- geos::geos_densify(boundary, tolerance = max_segment_length)
   
   # 3. Voronoi Diagram (Edges)
   # Uses nodes of the input geometry
-  voronoi_edges <- geos_voronoi_edges(boundary_densified)
+  voronoi_edges <- geos::geos_voronoi_edges(boundary_densified)
   
   # 4. Clip Voronoi to original geometry
-  skeleton_raw <- geos_intersection(voronoi_edges, geometry)
+  skeleton_raw <- geos::geos_intersection(voronoi_edges, geometry)
   
   # 5. Filter spokes (edges touching the boundary)
   # Unnest to individual segments
   # IMPORTANT: keep_multi = FALSE to ensure we get LINESTRINGS not MULTILINESTRINGS
-  edges <- geos_unnest(skeleton_raw, keep_multi = FALSE)
+  edges <- geos::geos_unnest(skeleton_raw, keep_multi = FALSE)
   
-  if (length(edges) == 0) return(geos_empty())
+  if (length(edges) == 0) return(geos::geos_empty())
   
   # Filter boundary spokes using *midpoint distance to boundary*.
   #
@@ -164,8 +166,8 @@ neat_skeletonize <- function(geometry, dist, max_segment_length, final_min_lengt
   # Using endpoint- or whole-segment distance is too aggressive: valid centreline
   # segments may touch the boundary at their ends (e.g., at polygon ends) but are
   # still part of the spine.
-  midpoints <- geos_interpolate(edges, geos_length(edges) / 2)
-  dist_mid_to_boundary <- geos_distance(midpoints, boundary)
+  midpoints <- geos::geos_interpolate(edges, geos::geos_length(edges) / 2)
+  dist_mid_to_boundary <- geos::geos_distance(midpoints, boundary)
   spoke_midpoint_tol <- dist * 0.75
   is_spoke <- dist_mid_to_boundary < spoke_midpoint_tol
   
@@ -174,7 +176,7 @@ neat_skeletonize <- function(geometry, dist, max_segment_length, final_min_lengt
   
   if (length(spine_edges) == 0) {
     # If everything is a spoke (e.g. narrow polygon), return empty or center
-    return(geos_empty())
+    return(geos::geos_empty())
   }
   
   # 6. Pre-process spine: prune very short segments (numerical noise) from initial Voronoi segments
@@ -183,45 +185,45 @@ neat_skeletonize <- function(geometry, dist, max_segment_length, final_min_lengt
   spine_edges_pruned_initial <- prune_short_dangles_iterative(spine_edges, min_length = 0.1)
   
   if (length(spine_edges_pruned_initial) == 0) {
-    return(geos_empty())
+    return(geos::geos_empty())
   }
   
   # Snap endpoints to ensure connectivity before merging.
   # Densify first so endpoints can snap to mid-segment vertices (not just existing
   # endpoints), which helps close small gaps at junctions.
-  spine_edges_dense <- geos_densify(spine_edges_pruned_initial, tolerance = dist)
-  snapped_edges <- geos_snap(spine_edges_dense, spine_edges_dense, tolerance = dist)
+  spine_edges_dense <- geos::geos_densify(spine_edges_pruned_initial, tolerance = dist)
+  snapped_edges <- geos::geos_snap(spine_edges_dense, spine_edges_dense, tolerance = dist)
   
   # 7. Merge and Simplify
   # Collect all edges into one collection, then union (to node them), then merge
-  collection <- geos_make_collection(snapped_edges) # Use snapped edges here
-  spine_noded <- geos_unary_union_prec(collection, grid_size = dist / 5)
-  spine_merged <- geos_line_merge(spine_noded)
+  collection <- geos::geos_make_collection(snapped_edges) # Use snapped edges here
+  spine_noded <- geos::geos_unary_union_prec(collection, grid_size = dist / 5)
+  spine_merged <- geos::geos_line_merge(spine_noded)
   
   if (isTRUE(simplify)) {
     # Simplify to smooth artifacts.
     # NOTE: Too much simplification can break junction connectivity.
-    simplified <- geos_simplify(spine_merged, tolerance = max_segment_length / 10)
-    lines <- geos_unnest(simplified, keep_multi = FALSE)
+    simplified <- geos::geos_simplify(spine_merged, tolerance = max_segment_length / 10)
+    lines <- geos::geos_unnest(simplified, keep_multi = FALSE)
   } else {
-    lines <- geos_unnest(spine_merged, keep_multi = FALSE)
+    lines <- geos::geos_unnest(spine_merged, keep_multi = FALSE)
   }
 
   if (length(lines) == 0) {
-    return(geos_empty())
+    return(geos::geos_empty())
   }
 
   # Attempt an additional merge pass without forcing re-noding (which can fragment).
-  lines <- geos_unnest(geos_merge_lines(geos_make_collection(lines)), keep_multi = FALSE)
+  lines <- geos::geos_unnest(geos::geos_merge_lines(geos::geos_make_collection(lines)), keep_multi = FALSE)
 
   # 8. Final Healing
   # Heal small gaps using densify + snap + union/merge, then prune short dangles.
   heal_densify_tol <- max(max_segment_length, dist * 2)
-  lines_dense <- geos_densify(lines, tolerance = heal_densify_tol)
-  snapped_final <- geos_snap(lines_dense, lines_dense, tolerance = dist)
-  final_noded <- geos_unary_union_prec(geos_make_collection(snapped_final), grid_size = dist / 5)
-  final_merged <- geos_merge_lines(final_noded)
-  result_lines_merged <- geos_unnest(final_merged, keep_multi = FALSE)
+  lines_dense <- geos::geos_densify(lines, tolerance = heal_densify_tol)
+  snapped_final <- geos::geos_snap(lines_dense, lines_dense, tolerance = dist)
+  final_noded <- geos::geos_unary_union_prec(geos::geos_make_collection(snapped_final), grid_size = dist / 5)
+  final_merged <- geos::geos_merge_lines(final_noded)
+  result_lines_merged <- geos::geos_unnest(final_merged, keep_multi = FALSE)
 
   # Remove short side-branches created by the merge/heal step, while preserving
   # backbone terminals (important for gap-free results).
@@ -235,23 +237,23 @@ neat_skeletonize <- function(geometry, dist, max_segment_length, final_min_lengt
   
   if (length(result_lines) == 0) {
     message("DEBUG: result_lines empty after final filter.")
-    return(geos_empty())
+    return(geos::geos_empty())
   }
 
   # Final merge pass after branch pruning.
-  result_lines <- geos_unnest(geos_merge_lines(geos_make_collection(result_lines)), keep_multi = FALSE)
+  result_lines <- geos::geos_unnest(geos::geos_merge_lines(geos::geos_make_collection(result_lines)), keep_multi = FALSE)
 
   if (isTRUE(simplify)) {
     # 9. Final smoothing (reduce waviness)
     # Simplify geometries, then heal to ensure we don't introduce gaps.
     # The tolerance is tied to `dist` so it scales with the network buffer width.
     smooth_tol <- dist / 2
-    result_lines_smooth <- geos_simplify(result_lines, tolerance = smooth_tol)
-    result_lines_smooth <- geos_unnest(result_lines_smooth, keep_multi = FALSE)
+    result_lines_smooth <- geos::geos_simplify(result_lines, tolerance = smooth_tol)
+    result_lines_smooth <- geos::geos_unnest(result_lines_smooth, keep_multi = FALSE)
 
     if (length(result_lines_smooth) > 0) {
       # Drop degenerate geometries that can trigger GEOS densify errors
-      ok <- (geos_num_coordinates(result_lines_smooth) > 1) & (geos_length(result_lines_smooth) > 0)
+      ok <- (geos::geos_num_coordinates(result_lines_smooth) > 1) & (geos::geos_length(result_lines_smooth) > 0)
       ok[is.na(ok)] <- FALSE
       result_lines_smooth <- result_lines_smooth[ok]
 
@@ -259,20 +261,20 @@ neat_skeletonize <- function(geometry, dist, max_segment_length, final_min_lengt
         return(result_lines)
       }
 
-      result_lines_smooth <- geos_densify(result_lines_smooth, tolerance = dist / 2)
-      result_lines_smooth <- geos_snap(result_lines_smooth, result_lines_smooth, tolerance = dist)
-      result_lines_smooth <- geos_unary_union_prec(
-        geos_make_collection(result_lines_smooth),
+      result_lines_smooth <- geos::geos_densify(result_lines_smooth, tolerance = dist / 2)
+      result_lines_smooth <- geos::geos_snap(result_lines_smooth, result_lines_smooth, tolerance = dist)
+      result_lines_smooth <- geos::geos_unary_union_prec(
+        geos::geos_make_collection(result_lines_smooth),
         grid_size = dist / 5
       )
-      result_lines_smooth <- geos_merge_lines(result_lines_smooth)
-      result_lines_smooth <- geos_unnest(result_lines_smooth, keep_multi = FALSE)
+      result_lines_smooth <- geos::geos_merge_lines(result_lines_smooth)
+      result_lines_smooth <- geos::geos_unnest(result_lines_smooth, keep_multi = FALSE)
 
       # One more pass to remove short branches created by smoothing.
       result_lines_smooth <- prune_short_branches_iterative(result_lines_smooth, min_length = final_min_length)
       if (length(result_lines_smooth) > 0) {
-        result_lines_smooth <- geos_unnest(
-          geos_merge_lines(geos_make_collection(result_lines_smooth)),
+        result_lines_smooth <- geos::geos_unnest(
+          geos::geos_merge_lines(geos::geos_make_collection(result_lines_smooth)),
           keep_multi = FALSE
         )
         result_lines <- result_lines_smooth
@@ -293,15 +295,86 @@ neat_skeletonize <- function(geometry, dist, max_segment_length, final_min_lengt
 #' @param final_min_factor Multiplier for dist to determine final_min_length (default 3).
 #' @param simplify Logical; if TRUE, applies line simplification and a final smoothing/healing
 #'   pass to reduce waviness. Default FALSE.
+#' @param selective Logical; if TRUE (default), only applies the buffer/skeletonization
+#'   algorithm to features classified as `parallel` or `parallel+complex` by
+#'   `neatnet_classify_groups()`.
+#'   Other features are passed through untouched. This preserves straight single
+#'   carriageway segments and can be faster.
+#' @param classify_dist Distance (map units) used by the classification step to detect
+#'   near-parallel line pairs. Defaults to `2 * dist` (i.e., lines whose buffers
+#'   would overlap at the given `dist`).
 #' @return An sf object of the simplified network.
 #' @export
-neatnet <- function(x, dist = 10, max_segment_factor = 2, final_min_factor = 3, simplify = FALSE) {
+neatnet <- function(
+  x,
+  dist = 10,
+  max_segment_factor = 2,
+  final_min_factor = 3,
+  simplify = FALSE,
+  selective = TRUE,
+  classify_dist = 2 * dist
+) {
   # Calculate internal parameters
   max_segment_length_internal <- dist * max_segment_factor
   final_min_length_internal <- dist * final_min_factor
+
+  if (isTRUE(selective)) {
+    classified <- neatnet_classify_groups(x, dist = classify_dist)
+    proc_idx <- classified$group_class %in% c("parallel", "parallel+complex")
+    proc_idx[is.na(proc_idx)] <- FALSE
+
+    x_keep <- classified[!proc_idx, , drop = FALSE]
+    x_proc <- classified[proc_idx, , drop = FALSE]
+
+    # If nothing to process, return the originals.
+    if (nrow(x_proc) == 0) {
+      return(sf::st_as_sf(sf::st_geometry(x_keep)))
+    }
+
+    # Process only the non-keep subset.
+    proc <- neatnet(
+      x_proc,
+      dist = dist,
+      max_segment_factor = max_segment_factor,
+      final_min_factor = final_min_factor,
+      simplify = simplify,
+      selective = FALSE
+    )
+
+    # Snap processed output to the original geometry to help preserve junctions,
+    # but keep "keep" features untouched (avoids fragmenting them).
+    proc_geom <- sf::st_geometry(proc)
+    proc_geom <- proc_geom[!sf::st_is_empty(proc_geom)]
+
+    snapped_proc <- sf::st_as_sf(proc_geom)
+    if (length(proc_geom) > 0) {
+      g_proc <- geos::as_geos_geometry(proc_geom)
+      g_proc <- geos::geos_unnest(g_proc, keep_multi = FALSE)
+      g_proc <- g_proc[!geos::geos_is_empty(g_proc)]
+
+      g_target <- geos::as_geos_geometry(sf::st_geometry(x))
+      g_target <- geos::geos_unnest(g_target, keep_multi = FALSE)
+      g_target <- g_target[!geos::geos_is_empty(g_target)]
+
+      if (length(g_proc) > 0 && length(g_target) > 0) {
+        g_target_one <- geos::geos_unary_union(geos::geos_make_collection(g_target))
+        g_proc <- geos::geos_snap(g_proc, g_target_one, tolerance = dist)
+        g_proc <- geos::geos_line_merge(geos::geos_make_collection(g_proc))
+        g_proc <- geos::geos_unnest(g_proc, keep_multi = FALSE)
+      }
+
+      snapped_proc <- sf::st_as_sf(g_proc)
+    }
+
+    combined_geom <- c(sf::st_geometry(x_keep), sf::st_geometry(snapped_proc))
+    combined_geom <- combined_geom[!sf::st_is_empty(combined_geom)]
+    res <- sf::st_as_sf(combined_geom)
+    if (!is.na(sf::st_crs(x))) sf::st_crs(res) <- sf::st_crs(x)
+    return(res)
+  }
   
   # Convert to geos
-  g <- as_geos_geometry(x)
+  g <- geos::as_geos_geometry(x)
   
   # Step 1: Buffer and Union
   g_buff <- neat_geometry_buffer(g, dist)

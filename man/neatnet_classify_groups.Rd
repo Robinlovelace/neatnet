@@ -6,10 +6,11 @@
 \usage{
 neatnet_classify_groups(
   x,
-  dist,
+  dist = 20,
   grid_size = dist/5,
   parallel_tol_deg = 20,
   min_parallel_lines = 2,
+  complex_dist = min(dist, 8),
   complex_min_neighbors = 8,
   complex_min_disp_deg = 60
 )
@@ -18,7 +19,7 @@ neatnet_classify_groups(
 \item{x}{An sf object (or sfc) containing LINESTRING/MULTILINESTRING geometries.}
 
 \item{dist}{Buffer distance (map units). Used both for grouping and for
-tolerance values in the topology check.}
+tolerance values in the topology check. Default 20.}
 
 \item{grid_size}{Precision grid size used before topology checks.
 Defaults to `dist/5`.}
@@ -29,8 +30,13 @@ be considered parallel. Default 20.}
 \item{min_parallel_lines}{Minimum number of features in a group for it to be
 considered parallel. Default 2.}
 
+\item{complex_dist}{Distance (map units) used for the local-neighbourhood
+check that flags complex areas. Defaults to `min(dist, 8)` so increasing
+`dist` for parallel detection does not automatically make everything
+"complex".}
+
 \item{complex_min_neighbors}{Minimum number of nearby neighbours (within
-`dist`) required for a feature to be considered in a locally complex area.
+`complex_dist`) required for a feature to be considered in a locally complex area.
 Default 8.}
 
 \item{complex_min_disp_deg}{Minimum angular dispersion (degrees, 0..90) among
