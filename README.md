@@ -154,11 +154,19 @@ print(output_summary)
 
 variants <- list(
   default = neatnet(princes_st, dist = 8),
+  dist4 = neatnet(princes_st, dist = 4),
   dist6 = neatnet(princes_st, dist = 6),
   dist10 = neatnet(princes_st, dist = 10),
+  dist12 = neatnet(princes_st, dist = 12),
+
+  prune1 = neatnet(princes_st, dist = 8, final_min_factor = 1),
+  prune2 = neatnet(princes_st, dist = 8, final_min_factor = 2),
   less_pruning = neatnet(princes_st, dist = 8, final_min_factor = 1),
   more_pruning = neatnet(princes_st, dist = 8, final_min_factor = 4),
+
+  boundary1_5 = neatnet(princes_st, dist = 8, max_segment_factor = 1.5, final_min_factor = 3),
   finer_boundary = neatnet(princes_st, dist = 8, max_segment_factor = 1.5, final_min_factor = 1),
+  boundary2_5 = neatnet(princes_st, dist = 8, max_segment_factor = 2.5, final_min_factor = 3),
   coarser_boundary = neatnet(princes_st, dist = 8, max_segment_factor = 3, final_min_factor = 3)
 )
 
@@ -172,6 +180,17 @@ print(variant_summaries)
 #> [1] 37233.65
 #> 
 #> $default$n_components
+#> [1] 2
+#> 
+#> 
+#> $dist4
+#> $dist4$n_features
+#> [1] 964
+#> 
+#> $dist4$total_length
+#> [1] 43994.89
+#> 
+#> $dist4$n_components
 #> [1] 2
 #> 
 #> 
@@ -197,6 +216,39 @@ print(variant_summaries)
 #> [1] 1
 #> 
 #> 
+#> $dist12
+#> $dist12$n_features
+#> [1] 697
+#> 
+#> $dist12$total_length
+#> [1] 35029.96
+#> 
+#> $dist12$n_components
+#> [1] 1
+#> 
+#> 
+#> $prune1
+#> $prune1$n_features
+#> [1] 2433
+#> 
+#> $prune1$total_length
+#> [1] 50429.74
+#> 
+#> $prune1$n_components
+#> [1] 2
+#> 
+#> 
+#> $prune2
+#> $prune2$n_features
+#> [1] 1164
+#> 
+#> $prune2$total_length
+#> [1] 41382.17
+#> 
+#> $prune2$n_components
+#> [1] 2
+#> 
+#> 
 #> $less_pruning
 #> $less_pruning$n_features
 #> [1] 2433
@@ -219,6 +271,17 @@ print(variant_summaries)
 #> [1] 2
 #> 
 #> 
+#> $boundary1_5
+#> $boundary1_5$n_features
+#> [1] 847
+#> 
+#> $boundary1_5$total_length
+#> [1] 37711.85
+#> 
+#> $boundary1_5$n_components
+#> [1] 2
+#> 
+#> 
 #> $finer_boundary
 #> $finer_boundary$n_features
 #> [1] 2800
@@ -227,6 +290,17 @@ print(variant_summaries)
 #> [1] 53237.6
 #> 
 #> $finer_boundary$n_components
+#> [1] 2
+#> 
+#> 
+#> $boundary2_5
+#> $boundary2_5$n_features
+#> [1] 724
+#> 
+#> $boundary2_5$total_length
+#> [1] 37313.9
+#> 
+#> $boundary2_5$n_components
 #> [1] 2
 #> 
 #> 

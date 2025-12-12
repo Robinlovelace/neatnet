@@ -121,11 +121,19 @@ print(output_summary)
 
 variants <- list(
   default = neatnet(princes_st, dist = 8),
+  dist4 = neatnet(princes_st, dist = 4),
   dist6 = neatnet(princes_st, dist = 6),
   dist10 = neatnet(princes_st, dist = 10),
+  dist12 = neatnet(princes_st, dist = 12),
+
+  prune1 = neatnet(princes_st, dist = 8, final_min_factor = 1),
+  prune2 = neatnet(princes_st, dist = 8, final_min_factor = 2),
   less_pruning = neatnet(princes_st, dist = 8, final_min_factor = 1),
   more_pruning = neatnet(princes_st, dist = 8, final_min_factor = 4),
+
+  boundary1_5 = neatnet(princes_st, dist = 8, max_segment_factor = 1.5, final_min_factor = 3),
   finer_boundary = neatnet(princes_st, dist = 8, max_segment_factor = 1.5, final_min_factor = 1),
+  boundary2_5 = neatnet(princes_st, dist = 8, max_segment_factor = 2.5, final_min_factor = 3),
   coarser_boundary = neatnet(princes_st, dist = 8, max_segment_factor = 3, final_min_factor = 3)
 )
 
