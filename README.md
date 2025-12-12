@@ -112,7 +112,7 @@ print(paste("Original features:", nrow(princes_st)))
 # dist = 8 matches the Python buffer=8.0
 simplified_princes <- neatnet(princes_st, dist = 8, max_segment_length = 5)
 print(paste("Simplified features:", nrow(simplified_princes)))
-#> [1] "Simplified features: 812"
+#> [1] "Simplified features: 121"
 
 # Plot
 plot(st_geometry(princes_st), col = "grey", lwd = 3, main = "Princes Street: Original (Grey) vs Simplified (Red)")
