@@ -235,6 +235,43 @@ neat_skeletonize <- function(geometry, dist, max_segment_length, final_min_lengt
 
   # Final merge pass after branch pruning.
   result_lines <- geos_unnest(geos_merge_lines(geos_make_collection(result_lines)), keep_multi = FALSE)
+
+  # 9. Final smoothing (reduce waviness)
+  # Simplify geometries, then heal to ensure we don't introduce gaps.
+  # The tolerance is tied to `dist` so it scales with the network buffer width.
+  smooth_tol <- dist / 2
+  result_lines_smooth <- geos_simplify(result_lines, tolerance = smooth_tol)
+  result_lines_smooth <- geos_unnest(result_lines_smooth, keep_multi = FALSE)
+
+  if (length(result_lines_smooth) > 0) {
+    # Drop degenerate geometries that can trigger GEOS densify errors
+    ok <- (geos_num_coordinates(result_lines_smooth) > 1) & (geos_length(result_lines_smooth) > 0)
+    ok[is.na(ok)] <- FALSE
+    result_lines_smooth <- result_lines_smooth[ok]
+
+    if (length(result_lines_smooth) == 0) {
+      return(result_lines)
+    }
+
+    result_lines_smooth <- geos_densify(result_lines_smooth, tolerance = dist / 2)
+    result_lines_smooth <- geos_snap(result_lines_smooth, result_lines_smooth, tolerance = dist)
+    result_lines_smooth <- geos_unary_union_prec(
+      geos_make_collection(result_lines_smooth),
+      grid_size = dist / 5
+    )
+    result_lines_smooth <- geos_merge_lines(result_lines_smooth)
+    result_lines_smooth <- geos_unnest(result_lines_smooth, keep_multi = FALSE)
+
+    # One more pass to remove short branches created by smoothing.
+    result_lines_smooth <- prune_short_branches_iterative(result_lines_smooth, min_length = final_min_length)
+    if (length(result_lines_smooth) > 0) {
+      result_lines_smooth <- geos_unnest(
+        geos_merge_lines(geos_make_collection(result_lines_smooth)),
+        keep_multi = FALSE
+      )
+      result_lines <- result_lines_smooth
+    }
+  }
   
   result_lines
 }

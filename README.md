@@ -68,7 +68,7 @@ print(simplified)
 #> Bounding box:  xmin: 4 ymin: 3 xmax: 96 ymax: 3
 #> Projected CRS: OSGB36 / British National Grid
 #>                         geometry
-#> 1 LINESTRING (96 3, 95 3, 93 ...
+#> 1 LINESTRING (96 3, 94 3, 91 ...
 
 # Plotting (basic)
 plot(st_geometry(lines_sf), col = "blue", lwd = 2, main = "Original (Blue) vs Simplified (Red)")
@@ -114,7 +114,7 @@ print(paste("Original features:", nrow(princes_st)))
 # dist = 8 matches the Python buffer=8.0
 simplified_princes <- neatnet(princes_st, dist = 8)
 print(paste("Simplified features:", nrow(simplified_princes)))
-#> [1] "Simplified features: 742"
+#> [1] "Simplified features: 545"
 
 # Plot
 plot(st_geometry(princes_st), col = "grey", lwd = 3, main = "Princes Street: Original (Grey) vs Simplified (Red)")
@@ -140,10 +140,10 @@ print(input_summary)
 #> [1] 2
 print(output_summary)
 #> $n_features
-#> [1] 742
+#> [1] 545
 #> 
 #> $total_length
-#> [1] 37233.65
+#> [1] 35776.52
 #> 
 #> $n_components
 #> [1] 2
@@ -166,10 +166,10 @@ variant_summaries <- lapply(variants, net_summary, grid_size = 0.1)
 print(variant_summaries)
 #> $default
 #> $default$n_features
-#> [1] 742
+#> [1] 545
 #> 
 #> $default$total_length
-#> [1] 37233.65
+#> [1] 35776.52
 #> 
 #> $default$n_components
 #> [1] 2
@@ -177,10 +177,10 @@ print(variant_summaries)
 #> 
 #> $dist6
 #> $dist6$n_features
-#> [1] 816
+#> [1] 621
 #> 
 #> $dist6$total_length
-#> [1] 39414.71
+#> [1] 37966.55
 #> 
 #> $dist6$n_components
 #> [1] 2
@@ -188,10 +188,10 @@ print(variant_summaries)
 #> 
 #> $dist10
 #> $dist10$n_features
-#> [1] 720
+#> [1] 528
 #> 
 #> $dist10$total_length
-#> [1] 36371.02
+#> [1] 34746.3
 #> 
 #> $dist10$n_components
 #> [1] 1
@@ -199,10 +199,10 @@ print(variant_summaries)
 #> 
 #> $less_pruning
 #> $less_pruning$n_features
-#> [1] 2433
+#> [1] 2319
 #> 
 #> $less_pruning$total_length
-#> [1] 50429.74
+#> [1] 49327.68
 #> 
 #> $less_pruning$n_components
 #> [1] 2
@@ -210,10 +210,10 @@ print(variant_summaries)
 #> 
 #> $more_pruning
 #> $more_pruning$n_features
-#> [1] 726
+#> [1] 527
 #> 
 #> $more_pruning$total_length
-#> [1] 36994.96
+#> [1] 35513.1
 #> 
 #> $more_pruning$n_components
 #> [1] 2
@@ -221,10 +221,10 @@ print(variant_summaries)
 #> 
 #> $finer_boundary
 #> $finer_boundary$n_features
-#> [1] 2800
+#> [1] 2583
 #> 
 #> $finer_boundary$total_length
-#> [1] 53237.6
+#> [1] 51718.05
 #> 
 #> $finer_boundary$n_components
 #> [1] 2
@@ -232,10 +232,10 @@ print(variant_summaries)
 #> 
 #> $coarser_boundary
 #> $coarser_boundary$n_features
-#> [1] 680
+#> [1] 542
 #> 
 #> $coarser_boundary$total_length
-#> [1] 36956.17
+#> [1] 35805.49
 #> 
 #> $coarser_boundary$n_components
 #> [1] 5
