@@ -1,0 +1,18 @@
+Package: neatnet
+Title: Neat Network Simplification
+Version: 0.0.1
+Authors@R: person("Robin", "Lovelace", email = "robin.lovelace@leeds.ac.uk", role = c("aut", "cre"))
+Description: An R implementation of network simplification techniques from the neatnet (Python) and parenx packages, using the high-performance geos library.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports:
+    geos,
+    sf,
+    wk
+Suggests:
+    testthat,
+    knitr,
+    rmarkdown,
+    tmap
+RoxygenNote: 7.3.1
