@@ -176,10 +176,10 @@ neat_skeletonize <- function(geometry, dist, max_segment_length, final_min_lengt
 #' @param x An sf object representing the network.
 #' @param dist Buffer distance (half width of road).
 #' @param max_segment_factor Multiplier for dist to determine max_segment_length (default 2).
-#' @param final_min_factor Multiplier for dist to determine final_min_length (default 10).
+#' @param final_min_factor Multiplier for dist to determine final_min_length (default 3).
 #' @return An sf object of the simplified network.
 #' @export
-neatnet <- function(x, dist = 10, max_segment_factor = 2, final_min_factor = 10) {
+neatnet <- function(x, dist = 10, max_segment_factor = 2, final_min_factor = 3) {
   # Calculate internal parameters
   max_segment_length_internal <- dist * max_segment_factor
   final_min_length_internal <- dist * final_min_factor

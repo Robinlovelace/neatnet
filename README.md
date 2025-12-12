@@ -33,8 +33,9 @@ library(geos)
 # source("R/neatnet.R") 
 # Or assume it is installed:
 # library(neatnet)
-devtools::load_all()  # Load all functions from the package during development
+devtools::load_all()
 #> ℹ Loading neatnet
+
 # Create a simple test case: two parallel lines 5m apart
 l1 <- matrix(c(0, 0, 100, 0), ncol = 2, byrow = TRUE)
 l2 <- matrix(c(0, 5, 100, 5), ncol = 2, byrow = TRUE)
@@ -55,18 +56,18 @@ print(lines_sf)
 #> 1  1 LINESTRING (0 0, 100 0)
 #> 2  2 LINESTRING (0 5, 100 5)
 
-# Run neatnet
+# Run neatnet with default parameters
 # dist = 5 (buffer radius). Since lines are 5m apart, they will merge.
-simplified <- neatnet(lines_sf, dist = 5, max_segment_length = 5)
+simplified <- neatnet(lines_sf, dist = 5)
 
 print(simplified)
 #> Simple feature collection with 1 feature and 0 fields
 #> Geometry type: LINESTRING
 #> Dimension:     XY
-#> Bounding box:  xmin: 3.354503 ymin: 2.5 xmax: 96.6455 ymax: 2.5
+#> Bounding box:  xmin: 4.342623 ymin: 2.5 xmax: 95.65738 ymax: 2.5
 #> Projected CRS: OSGB36 / British National Grid
 #>                         geometry
-#> 1 LINESTRING (96.6455 2.5, 3....
+#> 1 LINESTRING (95.65738 2.5, 4...
 
 # Plotting (basic)
 plot(st_geometry(lines_sf), col = "blue", lwd = 2, main = "Original (Blue) vs Simplified (Red)")
@@ -110,9 +111,9 @@ print(paste("Original features:", nrow(princes_st)))
 
 # Run neatnet
 # dist = 8 matches the Python buffer=8.0
-simplified_princes <- neatnet(princes_st, dist = 8, max_segment_length = 5)
+simplified_princes <- neatnet(princes_st, dist = 8)
 print(paste("Simplified features:", nrow(simplified_princes)))
-#> [1] "Simplified features: 121"
+#> [1] "Simplified features: 407"
 
 # Plot
 plot(st_geometry(princes_st), col = "grey", lwd = 3, main = "Princes Street: Original (Grey) vs Simplified (Red)")
