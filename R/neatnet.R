@@ -83,6 +83,49 @@ prune_short_dangles_iterative <- function(lines, min_length) {
   lines
 }
 
+#' Iteratively Prune Short Branches (Preserve Terminals)
+#
+#' Removes short side-branches (dangles attached to higher-degree junctions)
+#' without eroding the main backbone (terminal chains).
+#
+#' @param lines A geos_geometry vector of lines.
+#' @param min_length Threshold length for branch removal.
+#' @return A geos_geometry vector of filtered lines.
+#' @noRd
+prune_short_branches_iterative <- function(lines, min_length) {
+  if (length(lines) == 0) return(geos_empty())
+
+  repeat {
+    initial_line_count <- length(lines)
+
+    lens <- geos_length(lines)
+
+    starts <- geos_point_start(lines)
+    ends <- geos_point_end(lines)
+
+    starts_hex <- geos_write_hex(starts)
+    ends_hex <- geos_write_hex(ends)
+    all_points_hex <- c(starts_hex, ends_hex)
+    point_counts <- table(all_points_hex)
+
+    degree_start <- point_counts[starts_hex]
+    degree_end <- point_counts[ends_hex]
+    degree_start[is.na(degree_start)] <- 0
+    degree_end[is.na(degree_end)] <- 0
+
+    is_branch_tip <- (degree_start == 1 & degree_end >= 3) | (degree_end == 1 & degree_start >= 3)
+    is_dangle_candidate <- is_branch_tip & (lens < min_length)
+
+    if (!any(is_dangle_candidate)) break
+    lines <- lines[!is_dangle_candidate]
+
+    if (length(lines) == 0) break
+    if (length(lines) == initial_line_count) break
+  }
+
+  lines
+}
+
 #' Skeletonize Polygon
 #'
 #' Creates a skeleton of a polygon using Voronoi diagrams.
@@ -115,13 +158,16 @@ neat_skeletonize <- function(geometry, dist, max_segment_length, final_min_lengt
   
   if (length(edges) == 0) return(geos_empty())
   
-  # Check intersection with boundary
-  # Use distance check for robustness against precision issues
-  # Edges starting/ending at boundary will have distance ~ 0
-  # We use a liberal tolerance (e.g. 0.1) to catch edges that are slightly detached due to artifacts,
-  # while ensuring we don't remove the spine (which is typically 'dist' away, e.g. >1m).
-  dist_to_boundary <- geos_distance(edges, boundary)
-  is_spoke <- dist_to_boundary < 0.1
+  # Filter boundary spokes using *midpoint distance to boundary*.
+  #
+  # Voronoi skeletonization produces lots of boundary-directed "spokes".
+  # Using endpoint- or whole-segment distance is too aggressive: valid centreline
+  # segments may touch the boundary at their ends (e.g., at polygon ends) but are
+  # still part of the spine.
+  midpoints <- geos_interpolate(edges, geos_length(edges) / 2)
+  dist_mid_to_boundary <- geos_distance(midpoints, boundary)
+  spoke_midpoint_tol <- dist * 0.75
+  is_spoke <- dist_mid_to_boundary < spoke_midpoint_tol
   
   # Keep only edges that do NOT touch the boundary
   spine_edges <- edges[!is_spoke]
@@ -140,31 +186,55 @@ neat_skeletonize <- function(geometry, dist, max_segment_length, final_min_lengt
     return(geos_empty())
   }
   
-  # NEW STEP: Snap endpoints to ensure connectivity before merging
-  # Use a snap tolerance related to original line separation or densification.
-  # max_segment_length / 10 is 0.5m in this case.
-  snapped_edges <- geos_snap(spine_edges_pruned_initial, spine_edges_pruned_initial, tolerance = max_segment_length / 10)
+  # Snap endpoints to ensure connectivity before merging.
+  # Densify first so endpoints can snap to mid-segment vertices (not just existing
+  # endpoints), which helps close small gaps at junctions.
+  spine_edges_dense <- geos_densify(spine_edges_pruned_initial, tolerance = dist / 2)
+  snapped_edges <- geos_snap(spine_edges_dense, spine_edges_dense, tolerance = dist)
   
   # 7. Merge and Simplify
   # Collect all edges into one collection, then union (to node them), then merge
   collection <- geos_make_collection(snapped_edges) # Use snapped edges here
-  spine_noded <- geos_unary_union(collection)
+  spine_noded <- geos_unary_union_prec(collection, grid_size = dist / 5)
   spine_merged <- geos_line_merge(spine_noded)
   
-  # Simplify to smooth artifacts
-  simplified <- geos_simplify(spine_merged, tolerance = max_segment_length / 2)
-  
-  # Unnest to return individual LineStrings
+  # Simplify to smooth artifacts.
+  # NOTE: Too much simplification can break junction connectivity.
+  simplified <- geos_simplify(spine_merged, tolerance = max_segment_length / 10)
   lines <- geos_unnest(simplified, keep_multi = FALSE)
-  
-  # 8. Final Filtering: Remove segments below a certain length
-  # This is an aggressive filter to reduce feature count and remove "stumps" regardless of connectivity.
-  result_lines <- lines[geos_length(lines) >= final_min_length]
+
+  if (length(lines) == 0) {
+    return(geos_empty())
+  }
+
+  # Attempt an additional merge pass without forcing re-noding (which can fragment).
+  lines <- geos_unnest(geos_merge_lines(geos_make_collection(lines)), keep_multi = FALSE)
+
+  # 8. Final Healing
+  # Heal small gaps using densify + snap + union/merge, then prune short dangles.
+  lines_dense <- geos_densify(lines, tolerance = dist / 2)
+  snapped_final <- geos_snap(lines_dense, lines_dense, tolerance = dist)
+  final_noded <- geos_unary_union_prec(geos_make_collection(snapped_final), grid_size = dist / 5)
+  final_merged <- geos_merge_lines(final_noded)
+  result_lines_merged <- geos_unnest(final_merged, keep_multi = FALSE)
+
+  # Remove short side-branches created by the merge/heal step, while preserving
+  # backbone terminals (important for gap-free results).
+  result_lines <- prune_short_branches_iterative(result_lines_merged, min_length = final_min_length)
+
+  # If pruning removes everything (can happen if the merged result is still highly
+  # segmented), fall back to returning the merged result.
+  if (length(result_lines) == 0) {
+    result_lines <- result_lines_merged
+  }
   
   if (length(result_lines) == 0) {
     message("DEBUG: result_lines empty after final filter.")
     return(geos_empty())
   }
+
+  # Final merge pass after branch pruning.
+  result_lines <- geos_unnest(geos_merge_lines(geos_make_collection(result_lines)), keep_multi = FALSE)
   
   result_lines
 }

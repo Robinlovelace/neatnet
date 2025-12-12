@@ -105,3 +105,30 @@ print(paste("Simplified features:", nrow(simplified_princes)))
 plot(st_geometry(princes_st), col = "grey", lwd = 3, main = "Princes Street: Original (Grey) vs Simplified (Red)")
 plot(st_geometry(simplified_princes), col = "red", lwd = 2, add = TRUE)
 ```
+
+```{r princes-street-summary}
+# Network summaries (features, total length, connected components)
+
+input_summary <- net_summary(princes_st, grid_size = 0.1)
+output_summary <- net_summary(simplified_princes, grid_size = 0.1)
+
+print(input_summary)
+print(output_summary)
+```
+
+```{r princes-street-args}
+# How neatnet arguments affect connectivity
+
+variants <- list(
+  default = neatnet(princes_st, dist = 8),
+  dist6 = neatnet(princes_st, dist = 6),
+  dist10 = neatnet(princes_st, dist = 10),
+  less_pruning = neatnet(princes_st, dist = 8, final_min_factor = 1),
+  more_pruning = neatnet(princes_st, dist = 8, final_min_factor = 4),
+  finer_boundary = neatnet(princes_st, dist = 8, max_segment_factor = 1.5, final_min_factor = 1),
+  coarser_boundary = neatnet(princes_st, dist = 8, max_segment_factor = 3, final_min_factor = 3)
+)
+
+variant_summaries <- lapply(variants, net_summary, grid_size = 0.1)
+print(variant_summaries)
+```

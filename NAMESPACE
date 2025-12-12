@@ -2,6 +2,7 @@
 
 export(neat_geometry_buffer)
 export(neat_skeletonize)
+export(net_summary)
 export(neatnet)
 import(geos)
 import(sf)
