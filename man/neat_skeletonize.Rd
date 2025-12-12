@@ -4,7 +4,13 @@
 \alias{neat_skeletonize}
 \title{Skeletonize Polygon}
 \usage{
-neat_skeletonize(geometry, dist, max_segment_length, final_min_length)
+neat_skeletonize(
+  geometry,
+  dist,
+  max_segment_length,
+  final_min_length,
+  simplify = FALSE
+)
 }
 \arguments{
 \item{geometry}{A geos_geometry vector (polygons).}
@@ -14,6 +20,9 @@ neat_skeletonize(geometry, dist, max_segment_length, final_min_length)
 \item{max_segment_length}{Distance for densifying the boundary to ensure good Voronoi generation.}
 
 \item{final_min_length}{Minimum length for final segment filtering.}
+
+\item{simplify}{Logical; if TRUE, performs line simplification and an optional
+final smoothing/healing pass to reduce waviness. Default FALSE.}
 }
 \value{
 A geos_geometry vector (lines).

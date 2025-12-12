@@ -4,7 +4,15 @@
 \alias{neatnet}
 \title{Neat Network Simplification}
 \usage{
-neatnet(x, dist = 10, max_segment_factor = 2, final_min_factor = 3)
+neatnet(
+  x,
+  dist = 10,
+  max_segment_factor = 2,
+  final_min_factor = 3,
+  simplify = FALSE,
+  selective = TRUE,
+  classify_dist = 2 * dist
+)
 }
 \arguments{
 \item{x}{An sf object representing the network.}
@@ -14,6 +22,19 @@ neatnet(x, dist = 10, max_segment_factor = 2, final_min_factor = 3)
 \item{max_segment_factor}{Multiplier for dist to determine max_segment_length (default 2).}
 
 \item{final_min_factor}{Multiplier for dist to determine final_min_length (default 3).}
+
+\item{simplify}{Logical; if TRUE, applies line simplification and a final smoothing/healing
+pass to reduce waviness. Default FALSE.}
+
+\item{selective}{Logical; if TRUE (default), only applies the buffer/skeletonization
+algorithm to features classified as `parallel` or `parallel+complex` by
+`neatnet_classify_groups()`.
+Other features are passed through untouched. This preserves straight single
+carriageway segments and can be faster.}
+
+\item{classify_dist}{Distance (map units) used by the classification step to detect
+near-parallel line pairs. Defaults to `2 * dist` (i.e., lines whose buffers
+would overlap at the given `dist`).}
 }
 \value{
 An sf object of the simplified network.

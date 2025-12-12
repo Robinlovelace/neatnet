@@ -1,6 +1,6 @@
 library(sf)
 library(geos)
-source("R/neatnet.R")
+library(neatnet)
 
 # Create a simple test case: two parallel lines
 l1 <- matrix(c(0, 0, 100, 0), ncol = 2, byrow = TRUE)

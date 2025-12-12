@@ -37,7 +37,7 @@ This is a basic example showing how to simplify two close parallel lines into a 
 library(sf)
 library(geos)
 # In development, you might source the functions directly if the package isn't installed:
-# source("R/neatnet.R") 
+# source("R/neatnet.R")
 # Or assume it is installed:
 # library(neatnet)
 devtools::load_all()
@@ -97,13 +97,70 @@ princes_st <- st_transform(princes_st, 27700)
 print(paste("Original features:", nrow(princes_st)))
 
 # Run neatnet
-# dist = 8 matches the Python buffer=8.0
-simplified_princes <- neatnet(princes_st, dist = 8)
+# Keep `simplify = FALSE` for now.
+simplified_princes <- neatnet(princes_st)
 print(paste("Simplified features:", nrow(simplified_princes)))
 
 # Plot
 plot(st_geometry(princes_st), col = "grey", lwd = 3, main = "Princes Street: Original (Grey) vs Simplified (Red)")
 plot(st_geometry(simplified_princes), col = "red", lwd = 2, add = TRUE)
+```
+
+```{r princes-street-interactive, eval=FALSE}
+mapview::mapview(princes_st, lwd = 4) +
+  mapview::mapview(simplified_princes, col.regions = "red", lwd = 2)
+library(tmap)
+tmap_mode("view")
+tm_shape(princes_st) +
+  tm_lines(col = "darkgrey", lwd = 4) +
+  tm_shape(simplified_princes) +
+  tm_lines(col = "red", lwd = 2)
+```
+
+
+```{r princes-street-groups}
+# Classify and visualise groups
+groups <- neatnet_classify_groups(
+  princes_st,
+  parallel_tol_deg = 20,
+  complex_min_neighbors = 8,
+  complex_min_disp_deg = 60
+)
+
+cat("n groups:", length(unique(groups$group_id)), "\n")
+print(table(groups$group_class))
+
+pal <- c(
+  keep = "grey70",
+  parallel = "dodgerblue3",
+  complex = "orange3",
+  `parallel+complex` = "purple4"
+)
+cols <- pal[as.character(groups$group_class)]
+cols[is.na(cols)] <- "grey70"
+
+plot(st_geometry(groups), col = cols, lwd = 2, main = "Princes Street: classified groups")
+legend(
+  "topright",
+  legend = names(pal),
+  col = unname(pal),
+  lwd = 2,
+  cex = 0.8,
+  bty = "n"
+)
+```
+
+```{r princes-street-groups-interactive, eval=FALSE}
+mapview::mapview(groups, zcol = "group_class", lwd = 3, legend = TRUE)
+library(tmap)
+tmap_mode("view")
+tm_shape(groups) +
+  tm_lines(col = "group_class", palette = c(
+    keep = "grey70",
+    parallel = "dodgerblue3",
+    complex = "orange3",
+    `parallel+complex` = "purple4"
+  ), lwd = 3) 
 ```
 
 ```{r princes-street-summary}
@@ -120,13 +177,13 @@ print(output_summary)
 # How neatnet arguments affect connectivity
 
 variants <- list(
-  default = neatnet(princes_st, dist = 8),
+  default = neatnet(princes_st),
   dist6 = neatnet(princes_st, dist = 6),
   dist10 = neatnet(princes_st, dist = 10),
-  less_pruning = neatnet(princes_st, dist = 8, final_min_factor = 1),
-  more_pruning = neatnet(princes_st, dist = 8, final_min_factor = 4),
-  finer_boundary = neatnet(princes_st, dist = 8, max_segment_factor = 1.5, final_min_factor = 1),
-  coarser_boundary = neatnet(princes_st, dist = 8, max_segment_factor = 3, final_min_factor = 3)
+  less_pruning = neatnet(princes_st, final_min_factor = 1),
+  more_pruning = neatnet(princes_st, final_min_factor = 4),
+  finer_boundary = neatnet(princes_st, max_segment_factor = 1.5, final_min_factor = 1),
+  coarser_boundary = neatnet(princes_st, max_segment_factor = 3, final_min_factor = 3)
 )
 
 variant_summaries <- lapply(variants, net_summary, grid_size = 0.1)
