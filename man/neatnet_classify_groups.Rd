@@ -10,7 +10,8 @@ neatnet_classify_groups(
   grid_size = dist/5,
   parallel_tol_deg = 20,
   min_parallel_lines = 2,
-  complex_min_junctions = 1
+  complex_min_neighbors = 8,
+  complex_min_disp_deg = 60
 )
 }
 \arguments{
@@ -28,9 +29,12 @@ be considered parallel. Default 20.}
 \item{min_parallel_lines}{Minimum number of features in a group for it to be
 considered parallel. Default 2.}
 
-\item{complex_min_junctions}{Minimum number of features in a group that must
-touch a high-degree junction node (degree >= 3, after noding) for the group
-to be considered complex. Default 1.}
+\item{complex_min_neighbors}{Minimum number of nearby neighbours (within
+`dist`) required for a feature to be considered in a locally complex area.
+Default 8.}
+
+\item{complex_min_disp_deg}{Minimum angular dispersion (degrees, 0..90) among
+nearby neighbours required to flag complexity. Default 60.}
 }
 \value{
 An sf object with the original geometries and added columns:

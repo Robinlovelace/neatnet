@@ -126,11 +126,20 @@ plot(st_geometry(simplified_princes), col = "red", lwd = 2, add = TRUE)
 
 ``` r
 # Classify and visualise groups
-groups <- neatnet_classify_groups(princes_st, dist = 8)
+groups <- neatnet_classify_groups(
+  princes_st,
+  dist = 8,
+  parallel_tol_deg = 20,
+  complex_min_neighbors = 8,
+  complex_min_disp_deg = 60
+)
+
+cat("n groups:", length(unique(groups$group_id)), "\n")
+#> n groups: 875
 print(table(groups$group_class))
 #> 
-#>         parallel parallel+complex 
-#>                3             1141
+#>          complex             keep         parallel parallel+complex 
+#>               39              744               99              262
 
 pal <- c(
   keep = "grey70",

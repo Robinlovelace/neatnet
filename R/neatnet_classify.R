@@ -16,9 +16,11 @@
 #'   be considered parallel. Default 20.
 #' @param min_parallel_lines Minimum number of features in a group for it to be
 #'   considered parallel. Default 2.
-#' @param complex_min_junctions Minimum number of features in a group that must
-#'   touch a high-degree junction node (degree >= 3, after noding) for the group
-#'   to be considered complex. Default 1.
+#' @param complex_min_neighbors Minimum number of nearby neighbours (within
+#'   `dist`) required for a feature to be considered in a locally complex area.
+#'   Default 8.
+#' @param complex_min_disp_deg Minimum angular dispersion (degrees, 0..90) among
+#'   nearby neighbours required to flag complexity. Default 60.
 #'
 #' @return An sf object with the original geometries and added columns:
 #'   `group_id`, `n_in_group`, `bearing_deg`, `feature_parallel`, `feature_complex`,
@@ -30,7 +32,8 @@ neatnet_classify_groups <- function(
   grid_size = dist / 5,
   parallel_tol_deg = 20,
   min_parallel_lines = 2,
-  complex_min_junctions = 1
+  complex_min_neighbors = 8,
+  complex_min_disp_deg = 60
 ) {
   old_s2 <- sf::sf_use_s2()
   on.exit(suppressMessages(sf::sf_use_s2(old_s2)), add = TRUE)
@@ -57,23 +60,27 @@ neatnet_classify_groups <- function(
     return(sf_x)
   }
 
-  # 1) Grouping via buffer overlap graph
-  buf <- sf::st_buffer(geom, dist)
-  # st_intersects uses a spatial index; this is OK as a prototype.
-  hits <- sf::st_intersects(buf, buf, sparse = TRUE)
-
-  group_id <- .neatnet_components_from_adjlist(hits)
-  sf_x$group_id <- group_id
+  # 1) Neighbourhood graph (within distance)
+  # Using within-distance avoids transitive closure from the *road network*
+  # connectivity itself (which otherwise merges almost the entire city into one
+  # group). We'll build groups based on near-parallel adjacency instead.
+  hits <- sf::st_is_within_distance(geom, geom, dist = dist, sparse = TRUE)
+  # Precompute intersection/touch adjacency to avoid classifying connected
+  # (collinear) street segments as "parallel".
+  intersects <- sf::st_intersects(geom, geom, sparse = TRUE)
 
   # 2) Feature-level bearing (0..180, direction-invariant)
   sf_x$bearing_deg <- vapply(geom, .neatnet_bearing_deg_180, numeric(1))
 
   # 3) Feature-level parallel flag: has at least one near-parallel neighbour
-  # within the buffer-overlap neighbourhood.
+  # within the neighbourhood.
   feature_parallel <- logical(length(geom))
+  parallel_adj <- vector("list", length(geom))
   if (length(geom) >= 2) {
     for (i in seq_along(hits)) {
-      nbrs <- setdiff(hits[[i]], i)
+      nbrs <- hits[[i]]
+      # exclude self and any geometries that intersect/touch this feature
+      nbrs <- setdiff(nbrs, c(i, intersects[[i]]))
       if (length(nbrs) == 0) next
       bi <- sf_x$bearing_deg[[i]]
       if (!is.finite(bi)) next
@@ -81,18 +88,40 @@ neatnet_classify_groups <- function(
       bj <- bj[is.finite(bj)]
       if (length(bj) == 0) next
       diffs <- abs(((bj - bi + 90) %% 180) - 90)
-      feature_parallel[[i]] <- any(diffs <= parallel_tol_deg, na.rm = TRUE)
+      keep <- diffs <= parallel_tol_deg
+      if (any(keep, na.rm = TRUE)) {
+        feature_parallel[[i]] <- TRUE
+        parallel_adj[[i]] <- nbrs[keep]
+      }
     }
   }
   sf_x$feature_parallel <- feature_parallel
 
-  # 4) Feature-level complex flag: intersects any high-degree junction node.
-  junction_pts <- .neatnet_junction_points(geom, grid_size = grid_size)
+  # Build parallel-based groups: connected components of the parallel adjacency.
+  # Features with no parallel neighbours become singleton groups.
+  parallel_adj2 <- lapply(seq_along(geom), function(i) {
+    unique(c(i, parallel_adj[[i]]))
+  })
+  sf_x$group_id <- .neatnet_components_from_adjlist(parallel_adj2)
+
+  # 4) Feature-level complex flag (conservative): lots of nearby neighbours and
+  # high angular dispersion.
+  # This aims to capture roundabouts / complex junction areas without marking
+  # most ordinary street segments as complex.
   feature_complex <- logical(length(geom))
-  if (length(junction_pts) > 0) {
-    junction_dist <- max(as.numeric(grid_size), as.numeric(dist) / 10)
-    jhits <- sf::st_is_within_distance(geom, junction_pts, dist = junction_dist, sparse = TRUE)
-    feature_complex <- vapply(jhits, function(z) length(z) > 0, logical(1))
+  if (length(geom) >= 2) {
+    for (i in seq_along(hits)) {
+      nbrs <- hits[[i]]
+      nbrs <- nbrs[nbrs != i]
+      if (length(nbrs) < complex_min_neighbors) next
+
+      b <- sf_x$bearing_deg[nbrs]
+      b <- b[is.finite(b)]
+      if (length(b) < complex_min_neighbors) next
+
+      disp <- .neatnet_max_angular_dev_180(b)
+      feature_complex[[i]] <- is.finite(disp) && (disp >= complex_min_disp_deg)
+    }
   }
   sf_x$feature_complex <- feature_complex
 
@@ -110,9 +139,7 @@ neatnet_classify_groups <- function(
     idx <- which(sf_x$group_id == gid)
     group_parallel[as.character(gid)] <- (length(idx) >= min_parallel_lines) && any(sf_x$feature_parallel[idx])
 
-    # Complex group requires at least `complex_min_junctions` features that
-    # touch junction nodes (a rough proxy for intersections/roundabouts).
-    group_complex[as.character(gid)] <- sum(sf_x$feature_complex[idx]) >= complex_min_junctions
+    group_complex[as.character(gid)] <- any(sf_x$feature_complex[idx])
   }
 
   sf_x$group_parallel <- unname(group_parallel[as.character(sf_x$group_id)])
@@ -173,6 +200,21 @@ neatnet_classify_groups <- function(
   ang <- ang %% 180
   if (ang < 0) ang <- ang + 180
   ang
+}
+
+.neatnet_max_angular_dev_180 <- function(bearings_deg) {
+  # Compute max deviation from the circular mean on a 180-degree circle.
+  # Use doubled angles trick to account for 180 periodicity.
+  if (length(bearings_deg) == 0) return(NA_real_)
+  th <- bearings_deg * pi / 180
+  th2 <- 2 * th
+  cbar <- mean(cos(th2))
+  sbar <- mean(sin(th2))
+  if (!is.finite(cbar) || !is.finite(sbar)) return(NA_real_)
+  mean_th2 <- atan2(sbar, cbar)
+  mean_th <- (mean_th2 / 2)
+  dev <- abs(((bearings_deg - (mean_th * 180 / pi) + 90) %% 180) - 90)
+  max(dev, na.rm = TRUE)
 }
 
 .neatnet_junction_points <- function(geom, grid_size) {
