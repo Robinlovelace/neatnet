@@ -158,7 +158,10 @@ approach based on
     as belonging to the same intersection
 2.  **Node Contraction**: Merges clustered nodes to their centroid,
     updating edge geometries
-3.  **Pseudo-node Smoothing**: Removes degree-2 nodes that just connect
+3.  **Parallel Edge Removal**: Keeps only the shortest edge between each
+    node pair
+4.  **Dangle Removal**: Removes short dead-end edges
+5.  **Pseudo-node Smoothing**: Removes degree-2 nodes that just connect
     two edges
 
 ``` r
@@ -175,17 +178,24 @@ library(dbscan)
 #> The following object is masked from 'package:stats':
 #> 
 #>     as.dendrogram
+library(tibble)
 
 # Simplify using sfnetworks approach
-simplified_sfn = simplify_network_sfn(princes_st, eps = 15)
+# eps = 20m clusters nodes within 20m into same intersection
+# remove_parallels = TRUE keeps only shortest edge between node pairs
+# remove_dangles = TRUE removes short dead-ends
+simplified_sfn = simplify_network_sfn(princes_st, eps = 20, 
+                                       remove_parallels = TRUE,
+                                       remove_dangles = TRUE,
+                                       dangle_length = 30)
 #> Warning: to_spatial_subdivision assumes attributes are constant over geometries
 
 cat("Original features:", nrow(princes_st), "\n")
 #> Original features: 1144
 cat("Simplified features:", nrow(simplified_sfn), "\n")
-#> Simplified features: 501
+#> Simplified features: 421
 cat("Reduction:", round((1 - nrow(simplified_sfn)/nrow(princes_st)) * 100, 1), "%\n")
-#> Reduction: 56.2 %
+#> Reduction: 63.2 %
 
 # Compare lengths
 cat("\nLength comparison:\n")
@@ -194,7 +204,7 @@ cat("\nLength comparison:\n")
 cat("Original:", round(sum(st_length(princes_st))/1000, 1), "km\n")
 #> Original: 49.4 km
 cat("Simplified:", round(sum(st_length(simplified_sfn))/1000, 1), "km\n")
-#> Simplified: 43.7 km
+#> Simplified: 42 km
 
 # Visualize
 plot(st_geometry(princes_st), col = "grey", lwd = 3, 
