@@ -135,13 +135,9 @@ library(tibble)
 library(geos)
 
 # Simplify using sfnetworks approach
-# eps = 20m clusters nodes within 20m into same intersection
-# merge_parallels = TRUE computes centerlines for parallel edges
-# remove_dangles = TRUE removes redundant dead-ends
-simplified_sfn = simplify_network_sfn(princes_st, eps = 20, 
-                                       merge_parallels = TRUE,
-                                       remove_dangles = TRUE,
-                                       dangle_length = 50)
+# eps = 50m clusters nodes within 50m into same intersection
+# This larger radius catches more complex junctions
+simplified_sfn = simplify_network_sfn(princes_st, eps = 50)
 
 cat("Original features:", nrow(princes_st), "\n")
 cat("Simplified features:", nrow(simplified_sfn), "\n")

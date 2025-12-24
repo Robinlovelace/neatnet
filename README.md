@@ -182,13 +182,9 @@ library(tibble)
 library(geos)
 
 # Simplify using sfnetworks approach
-# eps = 20m clusters nodes within 20m into same intersection
-# merge_parallels = TRUE computes centerlines for parallel edges
-# remove_dangles = TRUE removes redundant dead-ends
-simplified_sfn = simplify_network_sfn(princes_st, eps = 20, 
-                                       merge_parallels = TRUE,
-                                       remove_dangles = TRUE,
-                                       dangle_length = 50)
+# eps = 50m clusters nodes within 50m into same intersection
+# This larger radius catches more complex junctions
+simplified_sfn = simplify_network_sfn(princes_st, eps = 50)
 #> Warning: to_spatial_subdivision assumes attributes are constant over geometries
 #> Checking if spatial network structure is valid...
 #> Spatial network structure is valid
@@ -196,9 +192,9 @@ simplified_sfn = simplify_network_sfn(princes_st, eps = 20,
 cat("Original features:", nrow(princes_st), "\n")
 #> Original features: 1144
 cat("Simplified features:", nrow(simplified_sfn), "\n")
-#> Simplified features: 359
+#> Simplified features: 110
 cat("Reduction:", round((1 - nrow(simplified_sfn)/nrow(princes_st)) * 100, 1), "%\n")
-#> Reduction: 68.6 %
+#> Reduction: 90.4 %
 
 # Compare lengths
 cat("\nLength comparison:\n")
@@ -207,7 +203,7 @@ cat("\nLength comparison:\n")
 cat("Original:", round(sum(st_length(princes_st))/1000, 1), "km\n")
 #> Original: 49.4 km
 cat("Simplified:", round(sum(st_length(simplified_sfn))/1000, 1), "km\n")
-#> Simplified: 42 km
+#> Simplified: 34.3 km
 
 # Visualize
 plot(st_geometry(princes_st), col = "grey", lwd = 3, 

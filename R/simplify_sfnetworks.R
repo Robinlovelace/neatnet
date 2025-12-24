@@ -19,8 +19,9 @@
 #' @importFrom sf st_as_sf st_geometry st_coordinates st_crs st_length
 #' @importFrom geos as_geos_geometry geos_centroid geos_make_collection
 #' @export
-simplify_network_sfn = function(x, eps = 20, min_pts = 1, 
+simplify_network_sfn = function(x, eps = 50, min_pts = 1, 
                                  merge_parallels = TRUE,
+                                 spatial_merge = FALSE,
                                  remove_dangles = TRUE,
                                  dangle_length = 50) {
   
@@ -163,6 +164,99 @@ simplify_network_sfn = function(x, eps = 20, min_pts = 1,
   # 9. Smooth pseudo-nodes (degree-2 nodes)
   smoothed = tidygraph::convert(contracted, sfnetworks::to_spatial_smooth)
   
+  # 9b. Spatial parallel detection - find edges that are geometrically parallel
+  # even if they don't share the same nodes (SLOW - optional)
+  if (spatial_merge) {
+    for (pass in 1:3) {  # Multiple passes to catch chains
+      edge_sf = smoothed |> sfnetworks::activate("edges") |> sf::st_as_sf()
+      
+      if (nrow(edge_sf) < 2) break
+      
+      # Compute bearings
+      get_bearing = function(geom) {
+        coords = sf::st_coordinates(geom)
+        if (nrow(coords) < 2) return(NA)
+        dx = coords[nrow(coords), 1] - coords[1, 1]
+        dy = coords[nrow(coords), 2] - coords[1, 2]
+        (atan2(dy, dx) * 180 / pi) %% 180
+      }
+      
+      bearings = sapply(sf::st_geometry(edge_sf), get_bearing)
+      
+      # Find spatial parallels using buffer intersection
+      parallel_groups = rep(NA_integer_, nrow(edge_sf))
+      group_id = 1
+      
+      for (i in seq_len(nrow(edge_sf))) {
+        if (!is.na(parallel_groups[i])) next
+        
+        geom_i = sf::st_geometry(edge_sf[i, ])
+        buff_i = sf::st_buffer(geom_i, eps / 2)
+        
+        # Find candidates that intersect buffer
+        candidates = which(sf::st_intersects(buff_i, sf::st_geometry(edge_sf), sparse = FALSE))
+        candidates = candidates[candidates != i & is.na(parallel_groups[candidates])]
+        
+        if (length(candidates) == 0) next
+        
+        # Filter by bearing similarity
+        bearing_i = bearings[i]
+        if (is.na(bearing_i)) next
+        
+        for (j in candidates) {
+          bearing_j = bearings[j]
+          if (is.na(bearing_j)) next
+          
+          # Check bearing difference (direction-invariant)
+          diff = abs(((bearing_j - bearing_i + 90) %% 180) - 90)
+          
+          if (diff < 25) {  # 25 degree tolerance
+            # Check they don't intersect (true parallels don't cross)
+            if (!sf::st_intersects(geom_i, sf::st_geometry(edge_sf[j, ]), sparse = FALSE)[1, 1]) {
+              # Mark as parallel group
+              if (is.na(parallel_groups[i])) {
+                parallel_groups[i] = group_id
+                group_id = group_id + 1
+              }
+              parallel_groups[j] = parallel_groups[i]
+            }
+          }
+        }
+      }
+      
+      # If we found any spatial parallels, keep only shortest in each group
+      if (any(!is.na(parallel_groups))) {
+        edge_data = smoothed |> sfnetworks::activate("edges") |> tibble::as_tibble()
+        edge_lens = as.numeric(sf::st_length(edge_sf))
+        
+        # For each group, keep only the shortest edge
+        keep_idx = which(is.na(parallel_groups))  # Keep non-parallel edges
+        
+        unique_groups = unique(parallel_groups[!is.na(parallel_groups)])
+        for (gid in unique_groups) {
+          group_idx = which(parallel_groups == gid)
+          # Keep the shortest
+          shortest_in_group = group_idx[which.min(edge_lens[group_idx])]
+          keep_idx = c(keep_idx, shortest_in_group)
+        }
+        
+        keep_idx = sort(keep_idx)
+        
+        smoothed = smoothed |>
+          sfnetworks::activate("edges") |>
+          dplyr::slice(keep_idx)
+        
+        # Re-smooth
+        smoothed = tryCatch(
+          tidygraph::convert(smoothed, sfnetworks::to_spatial_smooth),
+          error = function(e) smoothed
+        )
+      } else {
+        break  # No more parallels found
+      }
+    }
+  }
+
   # 10. Remove dangling edges
   if (remove_dangles) {
     for (iter in 1:5) {  # Iterate to remove chains
