@@ -223,7 +223,7 @@ cat(sprintf("%-10s %8.1f %10d %10.1f%% %10.1f\n", "eps=20", time_eps20, nrow(res
 #> eps=20          5.4        359       68.6%       42.0
 cat(sprintf("%-10s %8.1f %10d %10.1f%% %10.1f\n", "eps=35", time_eps35, nrow(results$eps35),
             (1-nrow(results$eps35)/nrow(princes_st))*100, sum(as.numeric(st_length(results$eps35)))/1000))
-#> eps=35          3.4        225       80.3%       40.9
+#> eps=35          3.3        225       80.3%       40.9
 cat(sprintf("%-10s %8.1f %10d %10.1f%% %10.1f\n", "eps=50", time_eps50, nrow(results$eps50),
             (1-nrow(results$eps50)/nrow(princes_st))*100, sum(as.numeric(st_length(results$eps50)))/1000))
 #> eps=50          2.5        110       90.4%       34.3
@@ -314,44 +314,40 @@ benchmark$sfn_eps50 = list(
 # Build comparison table
 comparison = data.frame(
   Approach = sapply(benchmark, `[[`, "name"),
-  Time_s = sapply(benchmark, `[[`, "time"),
+  time = sapply(benchmark, `[[`, "time"),
   Features = sapply(benchmark, function(b) nrow(b$result)),
   Vertices = sapply(benchmark, function(b) count_vertices(b$result)),
-  Length_km = sapply(benchmark, function(b) round(sum(as.numeric(st_length(b$result)))/1000, 2)),
+  Length_km = sapply(benchmark, function(b) sum(as.numeric(st_length(b$result)))/1000),
   stringsAsFactors = FALSE
 )
 
 # Calculate derived metrics
-comparison$Reduction_pct = round((1 - comparison$Features / comparison$Features[1]) * 100, 1)
-comparison$Segs_per_sec = ifelse(comparison$Time_s > 0, 
-                                  round(comparison$Features[1] / comparison$Time_s, 0), 
+comparison$Reduction_pct = (1 - comparison$Features / comparison$Features[1]) * 100
+comparison$Segs_per_sec = ifelse(comparison$time > 0, 
+                                  comparison$Features[1] / comparison$time, 
                                   NA)
 
-# Print table
-cat("=== Network Simplification Benchmark ===\n\n")
-#> === Network Simplification Benchmark ===
-print(comparison, row.names = FALSE)
-#>             Approach       Time_s Features Vertices Length_km Reduction_pct
-#>             Original 0.0000000000     1144     4603     49.38           0.0
-#>     neatnet (dist=8) 0.0005524158      742    11423     37.23          35.1
-#>    neatnet (dist=12) 0.0003521442      697     7446     35.03          39.1
-#>  sfnetworks (eps=20) 5.4000000000      359     6165     41.98          68.6
-#>  sfnetworks (eps=35) 3.4000000000      225     4720     40.91          80.3
-#>  sfnetworks (eps=50) 2.5000000000      110     2945     34.30          90.4
-#>  Segs_per_sec
-#>            NA
-#>       2070904
-#>       3248669
-#>           212
-#>           336
-#>           458
+# Remove time column and format with kable
+comparison$time = NULL
+
+knitr::kable(comparison, digits = 2, caption = "Network Simplification Benchmark")
 ```
+
+|             | Approach            | Features | Vertices | Length_km | Reduction_pct | Segs_per_sec |
+|:------------|:--------------------|---------:|---------:|----------:|--------------:|-------------:|
+| original    | Original            |     1144 |     4603 |     49.38 |          0.00 |           NA |
+| neatnet_d8  | neatnet (dist=8)    |      742 |    11423 |     37.23 |         35.14 |   2658328.96 |
+| neatnet_d12 | neatnet (dist=12)   |      697 |     7446 |     35.03 |         39.07 |   3693828.93 |
+| sfn_eps20   | sfnetworks (eps=20) |      359 |     6165 |     41.98 |         68.62 |       211.85 |
+| sfn_eps35   | sfnetworks (eps=35) |      225 |     4720 |     40.91 |         80.33 |       346.67 |
+| sfn_eps50   | sfnetworks (eps=50) |      110 |     2945 |     34.30 |         90.38 |       457.60 |
+
+Network Simplification Benchmark
 
 ### Summary
 
 The table above shows:
 
-- **Time_s**: Processing time in seconds
 - **Features**: Number of line segments in the output
 - **Vertices**: Total number of coordinate points
 - **Length_km**: Total network length in kilometers
@@ -363,5 +359,5 @@ The table above shows:
 - `sfnetworks (eps=50)` achieves the best simplification (~90%
   reduction) while maintaining network connectivity
 - Larger `eps` values merge more junctions, reducing complexity
-- The sfnetworks approach is faster and produces cleaner results than
-  skeletonization for this use case
+- The sfnetworks approach produces cleaner results than skeletonization
+  for this use case

@@ -246,29 +246,29 @@ benchmark$sfn_eps50 = list(
 # Build comparison table
 comparison = data.frame(
   Approach = sapply(benchmark, `[[`, "name"),
-  Time_s = sapply(benchmark, `[[`, "time"),
+  time = sapply(benchmark, `[[`, "time"),
   Features = sapply(benchmark, function(b) nrow(b$result)),
   Vertices = sapply(benchmark, function(b) count_vertices(b$result)),
-  Length_km = sapply(benchmark, function(b) round(sum(as.numeric(st_length(b$result)))/1000, 2)),
+  Length_km = sapply(benchmark, function(b) sum(as.numeric(st_length(b$result)))/1000),
   stringsAsFactors = FALSE
 )
 
 # Calculate derived metrics
-comparison$Reduction_pct = round((1 - comparison$Features / comparison$Features[1]) * 100, 1)
-comparison$Segs_per_sec = ifelse(comparison$Time_s > 0, 
-                                  round(comparison$Features[1] / comparison$Time_s, 0), 
+comparison$Reduction_pct = (1 - comparison$Features / comparison$Features[1]) * 100
+comparison$Segs_per_sec = ifelse(comparison$time > 0, 
+                                  comparison$Features[1] / comparison$time, 
                                   NA)
 
-# Print table
-cat("=== Network Simplification Benchmark ===\n\n")
-print(comparison, row.names = FALSE)
+# Remove time column and format with kable
+comparison$time = NULL
+
+knitr::kable(comparison, digits = 2, caption = "Network Simplification Benchmark")
 ```
 
 ### Summary
 
 The table above shows:
 
-- **Time_s**: Processing time in seconds
 - **Features**: Number of line segments in the output
 - **Vertices**: Total number of coordinate points
 - **Length_km**: Total network length in kilometers
@@ -279,4 +279,4 @@ The table above shows:
 
 - `sfnetworks (eps=50)` achieves the best simplification (~90% reduction) while maintaining network connectivity
 - Larger `eps` values merge more junctions, reducing complexity
-- The sfnetworks approach is faster and produces cleaner results than skeletonization for this use case
+- The sfnetworks approach produces cleaner results than skeletonization for this use case
