@@ -4,7 +4,6 @@
 # neatnet
 
 <!-- badges: start -->
-
 <!-- badges: end -->
 
 The goal of neatnet is to provide a high-performance R implementation
@@ -28,7 +27,7 @@ into a single centerline (skeleton).
 
 ``` r
 library(sf)
-#> Linking to GEOS 3.12.1, GDAL 3.8.4, PROJ 9.3.1; sf_use_s2() is TRUE
+#> Linking to GEOS 3.12.1, GDAL 3.8.4, PROJ 9.4.0; sf_use_s2() is TRUE
 library(geos)
 # In development, you might source the functions directly if the package isn't installed:
 # source("R/neatnet.R") 
@@ -122,6 +121,77 @@ plot(st_geometry(simplified_princes), col = "red", lwd = 2, add = TRUE)
 ```
 
 <img src="man/figures/README-princes-street-1.png" width="100%" />
+
+## Network Classification (Graph-Based)
+
+The `classify_network()` function uses a graph-theoretic approach to
+identify:
+
+- **Loops**: Edges internal to complex intersections (start and end at
+  the same node cluster)
+- **Parallel**: Multiple edges connecting the same pair of node clusters
+  (dual carriageways)
+- **Simple**: Unique connections that should be preserved as-is
+
+``` r
+# Classify the network using Frechet distance for parallel detection
+classified = classify_network(princes_st, dist = 10)
+
+# Summary of classifications
+table(classified$net_type)
+#> 
+#>     loop parallel   simple 
+#>      263      417      464
+
+# Visualize: Loops (blue), Parallel (red), Simple (gray)
+plot(st_geometry(classified), col = "gray", lwd = 1, 
+     main = "Network Classification")
+plot(st_geometry(classified[classified$net_type == "loop", ]), 
+     col = "blue", lwd = 2, add = TRUE)
+plot(st_geometry(classified[classified$net_type == "parallel", ]), 
+     col = "red", lwd = 2, add = TRUE)
+legend("topright", legend = c("Simple", "Loop", "Parallel"),
+       col = c("gray", "blue", "red"), lwd = 2, bty = "n")
+```
+
+<img src="man/figures/README-classification-1.png" width="100%" />
+
+## Network Simplification
+
+The `simplify_network()` function uses the classification to:
+
+- **Remove** loop edges (internal to complex intersections)
+- **Merge** parallel groups into single centerlines using
+  skeletonization
+- **Keep** simple edges unchanged
+
+``` r
+# Simplify the network
+simplified_new = simplify_network(princes_st, dist = 10)
+
+cat("Original features:", nrow(princes_st), "\n")
+#> Original features: 1144
+cat("Simplified features:", nrow(simplified_new), "\n")
+#> Simplified features: 771
+cat("Reduction:", round((1 - nrow(simplified_new)/nrow(princes_st)) * 100, 1), "%\n")
+#> Reduction: 32.6 %
+
+# Compare lengths
+cat("\nLength comparison:\n")
+#> 
+#> Length comparison:
+cat("Original:", round(sum(st_length(princes_st))/1000, 1), "km\n")
+#> Original: 49.4 km
+cat("Simplified:", round(sum(st_length(simplified_new))/1000, 1), "km\n")
+#> Simplified: 38.5 km
+
+# Visualize
+plot(st_geometry(princes_st), col = "grey", lwd = 3, 
+     main = "Simplified Network (Red) vs Original (Grey)")
+plot(st_geometry(simplified_new), col = "red", lwd = 2, add = TRUE)
+```
+
+<img src="man/figures/README-simplification-1.png" width="100%" />
 
 ``` r
 # Network summaries (features, total length, connected components)
