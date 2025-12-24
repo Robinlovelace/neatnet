@@ -179,23 +179,26 @@ library(dbscan)
 #> 
 #>     as.dendrogram
 library(tibble)
+library(geos)
 
 # Simplify using sfnetworks approach
 # eps = 20m clusters nodes within 20m into same intersection
-# remove_parallels = TRUE keeps only shortest edge between node pairs
-# remove_dangles = TRUE removes short dead-ends
+# merge_parallels = TRUE computes centerlines for parallel edges
+# remove_dangles = TRUE removes redundant dead-ends
 simplified_sfn = simplify_network_sfn(princes_st, eps = 20, 
-                                       remove_parallels = TRUE,
+                                       merge_parallels = TRUE,
                                        remove_dangles = TRUE,
-                                       dangle_length = 30)
+                                       dangle_length = 50)
 #> Warning: to_spatial_subdivision assumes attributes are constant over geometries
+#> Checking if spatial network structure is valid...
+#> Spatial network structure is valid
 
 cat("Original features:", nrow(princes_st), "\n")
 #> Original features: 1144
 cat("Simplified features:", nrow(simplified_sfn), "\n")
-#> Simplified features: 421
+#> Simplified features: 359
 cat("Reduction:", round((1 - nrow(simplified_sfn)/nrow(princes_st)) * 100, 1), "%\n")
-#> Reduction: 63.2 %
+#> Reduction: 68.6 %
 
 # Compare lengths
 cat("\nLength comparison:\n")
