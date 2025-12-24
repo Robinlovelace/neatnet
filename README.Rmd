@@ -127,31 +127,66 @@ The `simplify_network_sfn()` function uses an "intersection-first" approach base
 4. **Dangle Removal**: Removes short dead-end edges
 5. **Pseudo-node Smoothing**: Removes degree-2 nodes that just connect two edges
 
-```{r sfnetworks-simplify}
+```{r sfnetworks-simplify, fig.width=10, fig.height=8}
 library(sfnetworks)
 library(tidygraph)
 library(dbscan)
 library(tibble)
 library(geos)
 
-# Simplify using sfnetworks approach
-# eps = 50m clusters nodes within 50m into same intersection
-# This larger radius catches more complex junctions
-simplified_sfn = simplify_network_sfn(princes_st, eps = 50)
+# Compare different eps values with timing
+results = list()
 
-cat("Original features:", nrow(princes_st), "\n")
-cat("Simplified features:", nrow(simplified_sfn), "\n")
-cat("Reduction:", round((1 - nrow(simplified_sfn)/nrow(princes_st)) * 100, 1), "%\n")
+# eps = 20
+t1 = Sys.time()
+results$eps20 = simplify_network_sfn(princes_st, eps = 20)
+time_eps20 = round(as.numeric(Sys.time() - t1), 1)
 
-# Compare lengths
-cat("\nLength comparison:\n")
-cat("Original:", round(sum(st_length(princes_st))/1000, 1), "km\n")
-cat("Simplified:", round(sum(st_length(simplified_sfn))/1000, 1), "km\n")
+# eps = 35
+t1 = Sys.time()
+results$eps35 = simplify_network_sfn(princes_st, eps = 35)
+time_eps35 = round(as.numeric(Sys.time() - t1), 1)
 
-# Visualize
-plot(st_geometry(princes_st), col = "grey", lwd = 3, 
-     main = "sfnetworks Simplification: Original (Grey) vs Simplified (Red)")
-plot(st_geometry(simplified_sfn), col = "red", lwd = 2, add = TRUE)
+# eps = 50 (default)
+t1 = Sys.time()
+results$eps50 = simplify_network_sfn(princes_st, eps = 50)
+time_eps50 = round(as.numeric(Sys.time() - t1), 1)
+
+# Summary table
+cat("=== sfnetworks Simplification Comparison ===\n\n")
+cat(sprintf("%-10s %8s %10s %10s %10s\n", "Variant", "Time(s)", "Features", "Reduction", "Length(km)"))
+cat(sprintf("%-10s %8s %10s %10s %10s\n", "--------", "-------", "--------", "---------", "---------"))
+cat(sprintf("%-10s %8s %10d %10s %10.1f\n", "Original", "-", nrow(princes_st), "-", 
+            sum(as.numeric(st_length(princes_st)))/1000))
+cat(sprintf("%-10s %8.1f %10d %10.1f%% %10.1f\n", "eps=20", time_eps20, nrow(results$eps20),
+            (1-nrow(results$eps20)/nrow(princes_st))*100, sum(as.numeric(st_length(results$eps20)))/1000))
+cat(sprintf("%-10s %8.1f %10d %10.1f%% %10.1f\n", "eps=35", time_eps35, nrow(results$eps35),
+            (1-nrow(results$eps35)/nrow(princes_st))*100, sum(as.numeric(st_length(results$eps35)))/1000))
+cat(sprintf("%-10s %8.1f %10d %10.1f%% %10.1f\n", "eps=50", time_eps50, nrow(results$eps50),
+            (1-nrow(results$eps50)/nrow(princes_st))*100, sum(as.numeric(st_length(results$eps50)))/1000))
+
+# Plot comparison
+par(mfrow = c(2, 2))
+
+# Original
+plot(st_geometry(princes_st), col = "grey40", lwd = 1, main = "Original (1144 features)")
+
+# eps = 20
+plot(st_geometry(princes_st), col = "grey80", lwd = 1, 
+     main = paste0("eps=20 (", nrow(results$eps20), " features, ", time_eps20, "s)"))
+plot(st_geometry(results$eps20), col = "red", lwd = 2, add = TRUE)
+
+# eps = 35
+plot(st_geometry(princes_st), col = "grey80", lwd = 1,
+     main = paste0("eps=35 (", nrow(results$eps35), " features, ", time_eps35, "s)"))
+plot(st_geometry(results$eps35), col = "blue", lwd = 2, add = TRUE)
+
+# eps = 50
+plot(st_geometry(princes_st), col = "grey80", lwd = 1,
+     main = paste0("eps=50 (", nrow(results$eps50), " features, ", time_eps50, "s)"))
+plot(st_geometry(results$eps50), col = "darkgreen", lwd = 2, add = TRUE)
+
+par(mfrow = c(1, 1))
 ```
 
 

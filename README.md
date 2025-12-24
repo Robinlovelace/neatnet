@@ -181,37 +181,81 @@ library(dbscan)
 library(tibble)
 library(geos)
 
-# Simplify using sfnetworks approach
-# eps = 50m clusters nodes within 50m into same intersection
-# This larger radius catches more complex junctions
-simplified_sfn = simplify_network_sfn(princes_st, eps = 50)
+# Compare different eps values with timing
+results = list()
+
+# eps = 20
+t1 = Sys.time()
+results$eps20 = simplify_network_sfn(princes_st, eps = 20)
 #> Warning: to_spatial_subdivision assumes attributes are constant over geometries
 #> Checking if spatial network structure is valid...
 #> Spatial network structure is valid
+time_eps20 = round(as.numeric(Sys.time() - t1), 1)
 
-cat("Original features:", nrow(princes_st), "\n")
-#> Original features: 1144
-cat("Simplified features:", nrow(simplified_sfn), "\n")
-#> Simplified features: 110
-cat("Reduction:", round((1 - nrow(simplified_sfn)/nrow(princes_st)) * 100, 1), "%\n")
-#> Reduction: 90.4 %
+# eps = 35
+t1 = Sys.time()
+results$eps35 = simplify_network_sfn(princes_st, eps = 35)
+#> Warning: to_spatial_subdivision assumes attributes are constant over geometries
+#> Checking if spatial network structure is valid...
+#> Spatial network structure is valid
+time_eps35 = round(as.numeric(Sys.time() - t1), 1)
 
-# Compare lengths
-cat("\nLength comparison:\n")
-#> 
-#> Length comparison:
-cat("Original:", round(sum(st_length(princes_st))/1000, 1), "km\n")
-#> Original: 49.4 km
-cat("Simplified:", round(sum(st_length(simplified_sfn))/1000, 1), "km\n")
-#> Simplified: 34.3 km
+# eps = 50 (default)
+t1 = Sys.time()
+results$eps50 = simplify_network_sfn(princes_st, eps = 50)
+#> Warning: to_spatial_subdivision assumes attributes are constant over geometries
+#> Checking if spatial network structure is valid...
+#> Spatial network structure is valid
+time_eps50 = round(as.numeric(Sys.time() - t1), 1)
 
-# Visualize
-plot(st_geometry(princes_st), col = "grey", lwd = 3, 
-     main = "sfnetworks Simplification: Original (Grey) vs Simplified (Red)")
-plot(st_geometry(simplified_sfn), col = "red", lwd = 2, add = TRUE)
+# Summary table
+cat("=== sfnetworks Simplification Comparison ===\n\n")
+#> === sfnetworks Simplification Comparison ===
+cat(sprintf("%-10s %8s %10s %10s %10s\n", "Variant", "Time(s)", "Features", "Reduction", "Length(km)"))
+#> Variant     Time(s)   Features  Reduction Length(km)
+cat(sprintf("%-10s %8s %10s %10s %10s\n", "--------", "-------", "--------", "---------", "---------"))
+#> --------    -------   --------  ---------  ---------
+cat(sprintf("%-10s %8s %10d %10s %10.1f\n", "Original", "-", nrow(princes_st), "-", 
+            sum(as.numeric(st_length(princes_st)))/1000))
+#> Original          -       1144          -       49.4
+cat(sprintf("%-10s %8.1f %10d %10.1f%% %10.1f\n", "eps=20", time_eps20, nrow(results$eps20),
+            (1-nrow(results$eps20)/nrow(princes_st))*100, sum(as.numeric(st_length(results$eps20)))/1000))
+#> eps=20          5.5        359       68.6%       42.0
+cat(sprintf("%-10s %8.1f %10d %10.1f%% %10.1f\n", "eps=35", time_eps35, nrow(results$eps35),
+            (1-nrow(results$eps35)/nrow(princes_st))*100, sum(as.numeric(st_length(results$eps35)))/1000))
+#> eps=35          3.5        225       80.3%       40.9
+cat(sprintf("%-10s %8.1f %10d %10.1f%% %10.1f\n", "eps=50", time_eps50, nrow(results$eps50),
+            (1-nrow(results$eps50)/nrow(princes_st))*100, sum(as.numeric(st_length(results$eps50)))/1000))
+#> eps=50          2.6        110       90.4%       34.3
+
+# Plot comparison
+par(mfrow = c(2, 2))
+
+# Original
+plot(st_geometry(princes_st), col = "grey40", lwd = 1, main = "Original (1144 features)")
+
+# eps = 20
+plot(st_geometry(princes_st), col = "grey80", lwd = 1, 
+     main = paste0("eps=20 (", nrow(results$eps20), " features, ", time_eps20, "s)"))
+plot(st_geometry(results$eps20), col = "red", lwd = 2, add = TRUE)
+
+# eps = 35
+plot(st_geometry(princes_st), col = "grey80", lwd = 1,
+     main = paste0("eps=35 (", nrow(results$eps35), " features, ", time_eps35, "s)"))
+plot(st_geometry(results$eps35), col = "blue", lwd = 2, add = TRUE)
+
+# eps = 50
+plot(st_geometry(princes_st), col = "grey80", lwd = 1,
+     main = paste0("eps=50 (", nrow(results$eps50), " features, ", time_eps50, "s)"))
+plot(st_geometry(results$eps50), col = "darkgreen", lwd = 2, add = TRUE)
 ```
 
 <img src="man/figures/README-sfnetworks-simplify-1.png" width="100%" />
+
+``` r
+
+par(mfrow = c(1, 1))
+```
 
 ``` r
 # How neatnet arguments affect connectivity
