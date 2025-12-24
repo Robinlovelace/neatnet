@@ -116,6 +116,38 @@ print(input_summary)
 print(output_summary)
 ```
 
+## Simplification with sfnetworks (Intersection-First)
+
+The `simplify_network_sfn()` function uses an "intersection-first" approach based on
+[sfnetworks](https://luukvdmeer.github.io/sfnetworks/):
+
+1. **Node Clustering (DBSCAN)**: Identifies nodes within `eps` distance as belonging to the same intersection
+2. **Node Contraction**: Merges clustered nodes to their centroid, updating edge geometries
+3. **Pseudo-node Smoothing**: Removes degree-2 nodes that just connect two edges
+
+```{r sfnetworks-simplify}
+library(sfnetworks)
+library(tidygraph)
+library(dbscan)
+
+# Simplify using sfnetworks approach
+simplified_sfn = simplify_network_sfn(princes_st, eps = 15)
+
+cat("Original features:", nrow(princes_st), "\n")
+cat("Simplified features:", nrow(simplified_sfn), "\n")
+cat("Reduction:", round((1 - nrow(simplified_sfn)/nrow(princes_st)) * 100, 1), "%\n")
+
+# Compare lengths
+cat("\nLength comparison:\n")
+cat("Original:", round(sum(st_length(princes_st))/1000, 1), "km\n")
+cat("Simplified:", round(sum(st_length(simplified_sfn))/1000, 1), "km\n")
+
+# Visualize
+plot(st_geometry(princes_st), col = "grey", lwd = 3, 
+     main = "sfnetworks Simplification: Original (Grey) vs Simplified (Red)")
+plot(st_geometry(simplified_sfn), col = "red", lwd = 2, add = TRUE)
+```
+
 ```{r princes-street-args}
 # How neatnet arguments affect connectivity
 
@@ -140,3 +172,4 @@ variants <- list(
 variant_summaries <- lapply(variants, net_summary, grid_size = 0.1)
 print(variant_summaries)
 ```
+

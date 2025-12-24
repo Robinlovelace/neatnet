@@ -4,7 +4,6 @@
 # neatnet
 
 <!-- badges: start -->
-
 <!-- badges: end -->
 
 The goal of neatnet is to provide a high-performance R implementation
@@ -28,7 +27,7 @@ into a single centerline (skeleton).
 
 ``` r
 library(sf)
-#> Linking to GEOS 3.12.1, GDAL 3.8.4, PROJ 9.3.1; sf_use_s2() is TRUE
+#> Linking to GEOS 3.12.1, GDAL 3.8.4, PROJ 9.4.0; sf_use_s2() is TRUE
 library(geos)
 # In development, you might source the functions directly if the package isn't installed:
 # source("R/neatnet.R") 
@@ -148,6 +147,62 @@ print(output_summary)
 #> $n_components
 #> [1] 2
 ```
+
+## Simplification with sfnetworks (Intersection-First)
+
+The `simplify_network_sfn()` function uses an “intersection-first”
+approach based on
+[sfnetworks](https://luukvdmeer.github.io/sfnetworks/):
+
+1.  **Node Clustering (DBSCAN)**: Identifies nodes within `eps` distance
+    as belonging to the same intersection
+2.  **Node Contraction**: Merges clustered nodes to their centroid,
+    updating edge geometries
+3.  **Pseudo-node Smoothing**: Removes degree-2 nodes that just connect
+    two edges
+
+``` r
+library(sfnetworks)
+library(tidygraph)
+#> 
+#> Attaching package: 'tidygraph'
+#> The following object is masked from 'package:stats':
+#> 
+#>     filter
+library(dbscan)
+#> 
+#> Attaching package: 'dbscan'
+#> The following object is masked from 'package:stats':
+#> 
+#>     as.dendrogram
+
+# Simplify using sfnetworks approach
+simplified_sfn = simplify_network_sfn(princes_st, eps = 15)
+#> Warning: to_spatial_subdivision assumes attributes are constant over geometries
+
+cat("Original features:", nrow(princes_st), "\n")
+#> Original features: 1144
+cat("Simplified features:", nrow(simplified_sfn), "\n")
+#> Simplified features: 501
+cat("Reduction:", round((1 - nrow(simplified_sfn)/nrow(princes_st)) * 100, 1), "%\n")
+#> Reduction: 56.2 %
+
+# Compare lengths
+cat("\nLength comparison:\n")
+#> 
+#> Length comparison:
+cat("Original:", round(sum(st_length(princes_st))/1000, 1), "km\n")
+#> Original: 49.4 km
+cat("Simplified:", round(sum(st_length(simplified_sfn))/1000, 1), "km\n")
+#> Simplified: 43.7 km
+
+# Visualize
+plot(st_geometry(princes_st), col = "grey", lwd = 3, 
+     main = "sfnetworks Simplification: Original (Grey) vs Simplified (Red)")
+plot(st_geometry(simplified_sfn), col = "red", lwd = 2, add = TRUE)
+```
+
+<img src="man/figures/README-sfnetworks-simplify-1.png" width="100%" />
 
 ``` r
 # How neatnet arguments affect connectivity
